@@ -1,5 +1,7 @@
 # Frissítés 0.2-re
 
+Újabb változat: [Frissítés 0.3-ra](FRISSITES-v0.3.md). Az alábbi oldal a 0.2-ben bevezetett funkciókat ismerteti. A közös mérés és a kockaikonok új működését a 0.3-as útmutató írja le.
+
 Ez a csomag a korábbi Kalandasztal kibővített változata. Ugyanúgy GitHub Pages-en és az ingyenes PeerJS-kapcsolaton működik; új fiók, API-kulcs vagy saját szerver nem kell.
 
 ## Feltöltés a meglévő GitHub-oldaladra

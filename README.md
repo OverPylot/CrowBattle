@@ -1,9 +1,9 @@
-# Kalandasztal 0.2
+# Kalandasztal 0.3
 
 Magyar–angol, mobilbarát virtuális játékasztal D&D-hez. Saját szerver, buildelés és csomagtelepítés nélkül feltölthető GitHub Pages-re. A DM böngészője tartja össze a játékot, az egymásra találást az ingyenes PeerJS Cloud segíti.
 
 - Első indítás: [INDULAS.md](INDULAS.md).
-- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.2.md](FRISSITES-v0.2.md).
+- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.3.md](FRISSITES-v0.3.md).
 - Ellenőrzés és annak határai: [ELLENORZES.md](ELLENORZES.md).
 
 ## Ingyenes közzététel
@@ -24,13 +24,14 @@ A GitHubra csak az alkalmazás kódját és a mellékelt grafikákat töltöd fe
 - Tokenfeltöltés, név, szín, 1×1–5×5 mezős és szabad szélességű/magasságú méretezés.
 - Minden látható tokent bárki mozgathat; szerkeszteni és törölni a tulajdonosa vagy a DM tudja. A DM elrejtheti és visszahozhatja a figurákat. A rejtett token nem szerepel a játékosoknak küldött állapotban.
 - Mozgatás visszavonása, térképenként legfeljebb 50 bejegyzéssel; Ctrl/Cmd+Z.
-- Négyzetrácsos távolságmérés és a tokenmozgatás közbeni közvetlen út jelzése. Átlósan is 5 láb egy mező.
+- Közös, mezőközéptől induló távolságmérés és mozgásjelzés. A vonalon név, láb és mezőszám jelenik meg; a jelzés felengedés után 3 másodperccel eltűnik. Átlósan is 5 láb egy mező. Rejtett token mozgása csak a DM-nél látszik.
 - Névvel jelzett, minden résztvevőnél megjelenő térképi ping.
 - Jelenetváltás a szobakód és a kapcsolat megtartásával; csapattagnak jelölt figurák átvitele.
 - Kereshető tokentár: 12 kasztfigura egy-egy alosztály alapján, 6 ellenfél, 4 civil, 1 VIP. Saját, egységes SVG-portrék.
 - Saját tokenek elmentése, másolása; külön tokentár-export és -import.
 - Térképenként mentett és DM által megosztható zsákmánylista.
 - Összeállítható kockadobások: d4, d6, d8, d10, d12, d20, d100. Kattintás hozzáad, mínusz elvesz; kevert dobás és módosító is használható.
+- Felismerhető, külön D4–D100 kockaikonok, D20-as főikon és favicon.
 - Közös dobáselőzmény és külön titkos DM-dobás. A titkos dobások nem kerülnek át a játékosokhoz, az aktuális DM-térképpel mentődnek.
 - Érintéses mozgatás, kétujjas nagyítás, álló és fekvő mobilnézet, résztvevőnként külön magyar/angol felület.
 

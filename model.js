@@ -1,5 +1,5 @@
 // Shared data rules. Only the DM browser accepts commands and constructs player views.
-import {TOKEN_ASSETS} from './tokens.js?v=0.2.0';
+import {TOKEN_ASSETS} from './tokens.js?v=0.3.0';
 export const VERSION=2;
 export const PALETTE=['#456d5d','#b66c47','#536d91','#896285','#b69b4e','#6c7970','#954e4a'];
 export const DICE=[4,6,8,10,12,20,100];

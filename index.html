@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#f6f5f0">
   <meta name="description" content="Kétnyelvű, mobilbarát virtuális játékasztal. Saját térképek, tokenek és közös D&D-kalandok.">
   <title>Kalandasztal · A te játékasztalod</title>
-  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=0.2.0">
+  <link rel="icon" href="./assets/favicon.svg?v=0.3.0" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=0.3.0">
   <script defer src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./app.js?v=0.2.0"></script>
+  <script type="module" src="./app.js?v=0.3.0"></script>
 </head>
 <body>
   <svg class="icon-defs" aria-hidden="true"><defs>
-    <symbol id="i-dice" viewBox="0 0 24 24"><path d="m12 2 10 6v8l-10 6L2 16V8Z M2 8l10 6 10-6M12 14v8M12 2v12M2 16l10-2 10 2"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><path d="m12 2 9 5.5v9L12 22l-9-5.5v-9Z"/><path d="M12 2 6.5 9h11ZM3 7.5 6.5 9 3 16.5l9 1 9-1.5L17.5 9 21 7.5M6.5 9 12 17.5 17.5 9M12 17.5V22"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
     <symbol id="i-map" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16M15 5v16"/></symbol>
@@ -54,7 +54,7 @@
       <div class="role-row"><div class="role-switch" role="tablist" aria-label="Role"><button id="dm-tab" class="active" role="tab" aria-selected="true" data-action="role-dm"><svg><use href="#i-dice"/></svg><span data-t="dmRole">Én mesélek</span><span class="role-tag">DM</span></button><button id="player-tab" role="tab" aria-selected="false" data-action="role-player"><svg><use href="#i-users"/></svg><span data-t="playerRole">Játszani jöttem</span></button></div><span class="role-note" data-t="noAccount">Nincs regisztráció. Csak a kaland.</span></div>
       <section id="library" role="tabpanel" aria-labelledby="dm-tab"><div class="section-row"><div><h2 data-t="yourMaps">A térképeid</h2><p data-t="mapsCopy">Készítsd elő a következő helyszínt, vagy folytasd, ahol abbahagytátok.</p></div><button class="button secondary" data-action="import"><svg><use href="#i-upload"/></svg><span data-t="import">Mentés betöltése</span></button></div><div id="map-cards" class="map-cards"></div><div class="library-foot"><span><svg><use href="#i-check"/></svg><span data-t="localFoot">A térképeid ezen az eszközön maradnak. Készíts róluk letölthető mentést.</span></span><span class="small-label">MADE FOR YOUR PARTY</span></div></section>
       <section id="join-section" hidden role="tabpanel" aria-labelledby="player-tab"><div class="join-layout"><div class="join-copy"><span class="section-number">02 / PLAYER</span><h2 data-t="joinHeading">A csapat már vár.</h2><p data-t="joinCopy">Kérd el a szobakódot a mesélőtől, és foglalj helyet az asztalnál.</p><div class="connection-note"><svg><use href="#i-link"/></svg><span data-t="joinNote">A mesélő tartsa nyitva az oldalt játék közben.</span></div></div><form id="join-form" class="join-form"><label><span data-t="nickname">Becenév</span><input id="nickname" name="nickname" required maxlength="30" autocomplete="nickname" placeholder="pl. Liora" data-placeholder="nicknamePlaceholder"></label><label><span data-t="roomCode">Szobakód</span><input id="join-code" name="code" required minlength="12" maxlength="16" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></label><button class="button primary" type="submit"><span data-t="join">Csatlakozás</span><svg><use href="#i-arrow"/></svg></button><p id="join-status" class="form-status" aria-live="polite"></p></form></div></section>
-      <footer class="home-footer"><span>KALANDASZTAL <span class="version">/ 02</span></span><span data-t="footer">Kevesebb menü. Több játék.</span><button class="text-button" data-action="help" data-t="how">Hogyan működik?</button></footer>
+      <footer class="home-footer"><span>KALANDASZTAL <span class="version">/ 03</span></span><span data-t="footer">Kevesebb menü. Több játék.</span><button class="text-button" data-action="help" data-t="how">Hogyan működik?</button></footer>
     </main>
   </section>
 

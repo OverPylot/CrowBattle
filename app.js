@@ -1,8 +1,8 @@
-import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.2.0';
-import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.2.0';
-import {messages} from './i18n.js?v=0.2.0';
-import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.2.0';
-import {createFeatures} from './features.js?v=0.2.0';
+import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.3.0';
+import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.3.0';
+import {messages} from './i18n.js?v=0.3.0';
+import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.3.0';
+import {createFeatures} from './features.js?v=0.3.0';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -24,7 +24,7 @@ function translate(){
   document.querySelectorAll('[data-placeholder]').forEach(el=>el.placeholder=t(el.dataset.placeholder));
   document.querySelectorAll('.lang-button').forEach(el=>{el.innerHTML=lang==='hu'?'HU <span>/ EN</span>':'EN <span>/ HU</span>';el.setAttribute('aria-label',lang==='hu'?'Switch to English':'Váltás magyar nyelvre');});
   renderLibrary();updateStatus();
-  if(state.scene){$('scene-title').textContent=sceneName(state.scene);renderTokens();}features.render();
+  if(state.scene){$('scene-title').textContent=sceneName(state.scene);renderTokens();}features.render();features.paintCamera();
 }
 function sceneName(scene){if(scene.name==='Az elfeledett kripta'&&scene.id==='demo-vault')return t('demoVault');if(scene.name==='A régi erdei ösvény'&&scene.id==='demo-woodland')return t('demoWoodland');return scene.name;}
 function roleTab(role){
@@ -66,7 +66,7 @@ function changed(){
   if(state.role!=='dm')return;
   state.scene.revision++;state.scene.updatedAt=Date.now();
   $('save-state').textContent=t('saving');clearTimeout(saveTimer);saveTimer=setTimeout(persist,250);
-  if(state.roomActive)room.broadcast();
+  features.pruneMeasurements();if(state.roomActive)room.broadcast();
   features.refreshUndo();
 }
 function renderScene(){
@@ -91,7 +91,7 @@ async function goHome(){
   if(state.roomActive&&!confirm(t('leaveConfirm')))return;
   if(state.role==='player'&&room.status==='online'&&!confirm(t('leaveConfirm')))return;
   await persist();room.stop(true);state.roomActive=false;state.scene=null;state.role=null;state.selected=null;state.align=false;state.participants=[];
-  features.hidePanel();features.clearMeasurement();
+  features.hidePanel();features.clearMeasurement({all:true,notify:false});
   clearTimeout(saveTimer);$('table').hidden=true;$('home').hidden=false;document.body.classList.remove('table-open');$('join-status').textContent='';joining=false;$('join-form').querySelector('button[type=submit]').disabled=false;
   history.replaceState(null,'',location.pathname+location.search);renderLibrary();
 }
@@ -137,10 +137,11 @@ function commitCommand(command){
   if(command.type==='undo'){if(!undoMove(state.scene,true))return false;renderTokens();changed();return true;}
   if(command.type==='add'){if(state.scene.tokens.length>=1000){toast(t('full'));return false;}const token=normalizeToken({...command.token,id:uid(),name:uniqueTokenName(state.scene,command.token.name)},state.scene.map,state.scene.grid);Object.assign(token,snapPosition(token,token.x,token.y,state.scene));state.scene.tokens.push(token);state.selected=token.id;}
   else{
-    const token=state.scene.tokens.find(t=>t.id===command.id);if(!token)return false;
+    const token=state.scene.tokens.find(t=>t.id===command.id);if(!token)return false;const beforeMove=command.type==='move'?{...token}:null;
     if(command.type==='move'&&!moveToken(state.scene,token,command.x,command.y))return false;
     if(command.type==='edit')Object.assign(token,normalizeToken({...token,...command.token,id:token.id},state.scene.map,state.scene.grid));
     if(command.type==='delete'){state.scene.tokens=state.scene.tokens.filter(t=>t.id!==token.id);state.selected=null;}
+    if(beforeMove)features.moveCommitted('dm',beforeMove,token);
   }
   renderTokens();changed();return true;
 }
@@ -227,7 +228,7 @@ function gridModal(){
 
 const room=new Room({
   view:participants=>state.scene?playerView(state.scene,participants,state.sharedRolls):null,
-  command:(actor,command)=>{if(state.role!=='dm'||!state.roomActive||!command||command.sceneId!==state.scene.id)return false;const featureResult=features.applyCommand(actor,command);if(featureResult!==null)return featureResult;const accepted=applyPlayerCommand(state.scene,actor,command);if(accepted){renderTokens();changed();}return accepted;},
+  command:(actor,command)=>{if(state.role!=='dm'||!state.roomActive||!command||command.sceneId!==state.scene.id)return false;const featureResult=features.applyCommand(actor,command);if(featureResult!==null)return featureResult;const beforeMove=command.type==='move'?state.scene.tokens.find(t=>t.id===command.id):null,before=beforeMove?{...beforeMove}:null;const accepted=applyPlayerCommand(state.scene,actor,command);if(accepted){if(before)features.moveCommitted(actor,before,state.scene.tokens.find(t=>t.id===command.id));renderTokens();changed();}return accepted;},
   event:event=>features.receiveEvent(event),
   members:members=>{if(state.role==='dm'&&state.scene?.room){state.scene.room.members=members;changed();}},
   participants:participants=>{state.participants=participants;if($('modal').open&&$('participants'))renderParticipants();},
@@ -382,8 +383,9 @@ function endPointer(event,cancel=false){
     if(pointers.size<2){pinch=null;if(pointers.size===1){const next=[...pointers.values()][0];drag={kind:'pan',start:next,x:camera.x,y:camera.y,moved:true};}else drag=null;}return;
   }
   if(!drag)return;const ended=drag;drag=null;
-  if(ended.kind==='token'&&ended.moved&&!cancel){const token=state.scene.tokens.find(t=>t.id===ended.id);if(token){const position=snapPosition(token,ended.x+(point.x-ended.start.x)/camera.scale,ended.y+(point.y-ended.start.y)/camera.scale,state.scene);const sent=commitCommand({type:'move',id:token.id,...position});if(state.role==='player'&&sent)Object.assign(token,position);}}
-  if(ended.kind==='token')features.endMovement();
+  if(ended.kind==='token'&&ended.moved&&!cancel){const token=state.scene.tokens.find(t=>t.id===ended.id);if(token){const position=snapPosition(token,ended.x+(point.x-ended.start.x)/camera.scale,ended.y+(point.y-ended.start.y)/camera.scale,state.scene);features.movement({...token,x:ended.x,y:ended.y},position.x,position.y);features.endMovement();const sent=commitCommand({type:'move',id:token.id,...position});if(state.role==='player'&&sent)Object.assign(token,position);if(!sent)features.clearMeasurement();}}
+  else if(ended.kind==='token'&&cancel)features.endMovement(true);
+  if(ended.kind==='measure'){if(!cancel)features.updateMeasurement(worldPoint(point.x,point.y));features.endMeasurement(cancel);}
   if(ended.kind==='pan'&&ended.pingOnTap&&!ended.moved&&!cancel){const p=worldPoint(point.x,point.y);commitCommand({type:'ping',sceneId:state.scene.id,...p});}
   if(ended.kind==='grid'&&ended.moved)changed();
   if(ended.kind==='pan'&&!ended.moved&&ended.blank)clearSelection();

@@ -1,6 +1,6 @@
-# Így indítsd el ingyen a Kalandasztalt 0.2
+# Így indítsd el ingyen a Kalandasztalt 0.3
 
-Ha a korábbi változatot már használod, a [FRISSITES-v0.2.md](FRISSITES-v0.2.md) útmutatót kövesd.
+Ha a korábbi változatot már használod, a [FRISSITES-v0.3.md](FRISSITES-v0.3.md) útmutatót kövesd.
 
 A weboldalt a GitHub Pages szolgálja ki. A játékosok és a mesélő összekapcsolását a PeerJS ingyenes szolgáltatása segíti. Nem kell bankkártya, PeerJS-fiók, API-kulcs, domainvásárlás, saját szerver vagy fizetős tárhely.
 
@@ -83,4 +83,4 @@ A szoba tartalmát a kóddal rendelkezők érhetik el. A DM-kezdőképernyőre k
 Ha a helyi térképtár üres: ugyanazt az eszközt, böngészőt és webcímet használod-e? Engedélyezve van-e a webhelyadatok tárolása? A böngészőadatok törlése vagy az inkognitóablak bezárása eltüntetheti a helyi mentést. Ilyenkor a korábban letöltött biztonsági mentésből állítsd vissza.
 
 
-A visszavonás, távolságmérés, ping, jelenetváltás, tokentár, zsákmány és a közös/titkos kockadobás részletes használata: [FRISSITES-v0.2.md](FRISSITES-v0.2.md).
+A visszavonás, távolságmérés, ping, jelenetváltás, tokentár, zsákmány és a közös/titkos kockadobás részletes használata: [FRISSITES-v0.3.md](FRISSITES-v0.3.md).

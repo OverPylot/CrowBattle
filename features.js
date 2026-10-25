@@ -1,10 +1,13 @@
-import {BUILTIN_TOKENS} from './tokens.js?v=0.2.0';
-import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.2.0';
-import {listTemplates,saveTemplate} from './storage.js?v=0.2.0';
+import {diceIcon} from './dice-icons.js?v=0.3.0';
+import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.3.0';
+import {BUILTIN_TOKENS} from './tokens.js?v=0.3.0';
+import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.3.0';
+import {listTemplates,saveTemplate} from './storage.js?v=0.3.0';
 
 export function createFeatures(ctx){
   const {$,t,esc,icon,toast,modal,closeModal,field,submitButton,cancelButton}=ctx;
-  let panel='',filter='all',search='',templates=[],pool={},modifier=0,secret=false,carry=true,points=[],measureKind='measurement',measureTimer;
+  let panel='',filter='all',search='',templates=[],pool={},modifier=0,secret=false,carry=true;
+  const measures=new Map(),measureTimers=new Map();let gesture=null,pendingMeasure=null,sendTimer=null,lastMeasureSent=0;
   const pingTimers=new Set();let receivedState=false,lastRollId='';
   const state=()=>ctx.state;
   const nameOf=template=>template.name||template[ctx.language()]||template.en;
@@ -66,7 +69,7 @@ export function createFeatures(ctx){
   }
   function renderDice(){
     const dm=state().role==='dm',groups=DICE.filter(n=>pool[n]).map(sides=>({sides,count:pool[sides]}));
-    shell(t('dice'),`<p class="panel-copy">${t('diceCopy')}</p><div class="dice-grid">${DICE.map(sides=>`<div class="die-stack ${pool[sides]?'has-dice':''}"><button class="die-add" data-action="die-add" data-sides="${sides}" aria-label="${t('addDie')} D${sides}"><svg class="die-shape" viewBox="0 0 44 44"><path d="M22 3 40 13v19L22 42 4 32V13ZM4 13l18 9 18-9M22 22v20" fill="none"/></svg><span class="die-label">D${sides}</span></button><div class="die-count"><button data-action="die-remove" data-sides="${sides}" aria-label="${t('removeDie')} D${sides}" ${!pool[sides]?'disabled':''}>−</button><span aria-label="D${sides} ${pool[sides]||0}">${pool[sides]||0}</span></div></div>`).join('')}</div><div class="dice-expression">${groups.length?esc(expression(groups,modifier)):t('chooseDice')}</div><div class="dice-options"><label><span>${t('modifier')}</span><input id="dice-modifier" class="dice-modifier" type="number" min="-9999" max="9999" step="1" value="${modifier}"></label>${dm?`<label class="check-field"><input id="dice-secret" type="checkbox" ${secret?'checked':''}><span>${t('secretRoll')}</span></label>`:''}</div><button class="button primary roll-button" data-action="roll-dice" ${!groups.length?'disabled':''}>${icon('dice')}${t('roll')}</button><button class="text-button dice-reset" data-action="dice-clear">${t('clearDice')}</button><p class="field-caption" style="margin-top:12px">${t(dm&&secret?'secretCopy':'sharedCopy')}</p><div class="history-heading"><strong>${t('rollHistory')}</strong><span class="version-badge">${dm&&secret?t('secret'):t('publicRoll')}</span></div><div id="roll-history" class="roll-history"></div>`,'dice');
+    shell(t('dice'),`<p class="panel-copy">${t('diceCopy')}</p><div class="dice-grid">${DICE.map(sides=>`<div class="die-stack ${pool[sides]?'has-dice':''}"><button class="die-add" data-action="die-add" data-sides="${sides}" aria-label="${t('addDie')} D${sides}">${diceIcon(sides)}<span class="die-label">D${sides}</span></button><div class="die-count"><button data-action="die-remove" data-sides="${sides}" aria-label="${t('removeDie')} D${sides}" ${!pool[sides]?'disabled':''}>−</button><span aria-label="D${sides} ${pool[sides]||0}">${pool[sides]||0}</span></div></div>`).join('')}</div><div class="dice-expression">${groups.length?esc(expression(groups,modifier)):t('chooseDice')}</div><div class="dice-action-row"><label><span>${t('modifier')}</span><input id="dice-modifier" class="dice-modifier" type="number" min="-9999" max="9999" step="1" value="${modifier}"></label><button class="button primary roll-button" data-action="roll-dice" ${!groups.length?'disabled':''}>${icon('dice')}${t('roll')}</button></div>${dm?`<label class="check-field dice-secret-option"><input id="dice-secret" type="checkbox" ${secret?'checked':''}><span>${t('secretRoll')}</span></label>`:''}<button class="text-button dice-reset" data-action="dice-clear">${t('clearDice')}</button><p class="field-caption" style="margin-top:12px">${t(dm&&secret?'secretCopy':'sharedCopy')}</p><div class="history-heading"><strong>${t('rollHistory')}</strong><span class="version-badge">${dm&&secret?t('secret'):t('publicRoll')}</span></div><div id="roll-history" class="roll-history"></div>`,'dice');
     $('dice-modifier').oninput=e=>{if(e.target.validity.valid){modifier=Number(e.target.value)||0;document.querySelector('.dice-expression').textContent=groups.length?expression(groups,modifier):t('chooseDice');}};
     if($('dice-secret'))$('dice-secret').onchange=e=>{secret=e.target.checked;renderDice();};
     renderRollHistory();
@@ -79,6 +82,15 @@ export function createFeatures(ctx){
   function notifyRoll(roll){toast(`${roll.secret?t('secret')+' · ':''}${roll.name} · ${expression(roll.groups,roll.modifier)} = ${roll.total}`);}
   function applyCommand(actor,command){
     if(!command||typeof command!=='object')return false;
+    if(command.type==='measure'){
+      const event=normalizeMeasurement(state().scene,actor,command);if(!event)return false;
+      publishMeasurement(event);return true;
+    }
+    if(command.type==='measure-clear'){
+      const previous=measures.get(actor);if(!previous||previous.id!==command.id)return true;
+      removeMeasurement(actor,previous.id);
+      if(!previous.private&&state().roomActive)ctx.room().broadcastEvent({kind:'measure-clear',actor,id:previous.id,sceneId:state().scene.id});return true;
+    }
     if(command.type==='roll'){
       if(actor!=='dm'&&command.secret)return false;
       try{
@@ -98,29 +110,114 @@ export function createFeatures(ctx){
     }
     return null;
   }
-  function receiveEvent(event){
+  function receivePing(event){
     if(event?.kind!=='ping'||event.sceneId!==state().scene?.id||!Number.isFinite(event.x)||!Number.isFinite(event.y))return;
     const el=document.createElement('div');el.className='ping-marker';el.style.left=event.x+'px';el.style.top=event.y+'px';el.style.setProperty('--ping-color',/^#[0-9a-f]{6}$/i.test(event.color)?event.color:'#e9bd68');el.style.transform=`scale(${1/ctx.camera().scale})`;
     const label=document.createElement('span');label.textContent=String(event.name).slice(0,40);el.append(label);$('pings').append(el);
     while($('pings').children.length>10)$('pings').firstElementChild.remove();const timer=setTimeout(()=>{el.remove();pingTimers.delete(timer);},3500);pingTimers.add(timer);
   }
-  function clearMeasurement(){points=[];clearTimeout(measureTimer);$('measure-layer').replaceChildren();$('measure-readout').hidden=true;}
-  function measurePoint(point){const g=state().scene.grid;if(g.enabled&&g.snap)return {x:Math.round((point.x-g.x)/g.size)*g.size+g.x,y:Math.round((point.y-g.y)/g.size)*g.size+g.y};return point;}
-  function beginMeasurement(point){clearTimeout(measureTimer);const p=measurePoint(point);points=[p,p];measureKind='measurement';drawMeasurement();}
-  function updateMeasurement(point){if(points.length){points[1]=measurePoint(point);drawMeasurement();}}
-  function movement(token,x,y){clearTimeout(measureTimer);measureKind='movement';points=[{x:token.x+token.w/2,y:token.y+token.h/2},{x:x+token.w/2,y:y+token.h/2}];drawMeasurement();}
-  function drawMeasurement(){
-    if(!points.length||!state().scene)return;
-    const scale=ctx.camera().scale,stroke=2/scale,r=4/scale;
-    $('measure-layer').innerHTML=`<polyline points="${points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="#ffdfa0" stroke-width="${stroke}" stroke-dasharray="${7/scale} ${4/scale}"/>${points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#ffdfa0" stroke="#5e633e" stroke-width="${1/scale}"/>`).join('')}`;
-    const distance=measureDistance(points,state().scene.grid.size),format=n=>Number(n).toLocaleString(ctx.language(),{maximumFractionDigits:1});
-    $('measure-readout').hidden=false;$('measure-value').textContent=`${t(measureKind)}: ${format(distance.feet)} ${t('feet')} · ${format(distance.squares)} ${t('squares')}`;
+  const ownActor=()=>state().role==='dm'?'dm':state().myId;
+  function actorStyle(actor){
+    return {name:actor==='dm'?'DM':state().participants.find(p=>p.id===actor)?.name||t('player'),color:actor==='dm'?'#efc47c':PALETTE[[...actor].reduce((sum,c)=>sum+c.charCodeAt(0),0)%PALETTE.length]};
   }
-  function endMovement(){clearTimeout(measureTimer);measureTimer=setTimeout(clearMeasurement,2200);}
+  function receiveEvent(event){
+    if(event?.kind==='ping'){receivePing(event);return;}
+    if(event?.sceneId!==state().scene?.id)return;
+    if(event.kind==='measure-clear'){removeMeasurement(event.actor,event.id);return;}
+    if(event.kind!=='measure'||event.private||typeof event.actor!=='string'||typeof event.id!=='string'||!['movement','measurement'].includes(event.measureKind)||!Array.isArray(event.points)||event.points.length!==2||!event.points.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)))return;
+    const points=event.points.map(p=>cellCenter(p,state().scene.grid,state().scene.map));
+    acceptMeasurement({...event,points,name:String(event.name||t('player')).slice(0,30),color:/^#[0-9a-f]{6}$/i.test(event.color)?event.color:'#efc47c',...measureDistance(points,state().scene.grid.size)});
+  }
+  function acceptMeasurement(event){
+    clearTimeout(measureTimers.get(event.actor));measures.set(event.actor,event);
+    const timer=setTimeout(()=>removeMeasurement(event.actor,event.id),event.final?MEASURE_FADE_MS:MEASURE_IDLE_MS);measureTimers.set(event.actor,timer);drawMeasurement();
+  }
+  function publishMeasurement(event){
+    const previous=measures.get(event.actor);
+    // Starting a private DM line also clears any prior public line by that actor.
+    if(event.private&&previous&&!previous.private&&state().roomActive)ctx.room().broadcastEvent({kind:'measure-clear',actor:event.actor,id:previous.id,sceneId:event.sceneId});
+    const decorated={...event,...actorStyle(event.actor)};acceptMeasurement(decorated);
+    if(!event.private&&state().roomActive){const {private:privateFlag,...publicEvent}=decorated;ctx.room().broadcastEvent(publicEvent);}
+  }
+  function removeMeasurement(actor,id){
+    const current=measures.get(actor);if(!current||current.id!==id)return;
+    clearTimeout(measureTimers.get(actor));measureTimers.delete(actor);measures.delete(actor);drawMeasurement();
+  }
+  function cancelPending(){clearTimeout(sendTimer);sendTimer=null;pendingMeasure=null;}
+  function clearMeasurement(options={}){
+    cancelPending();gesture=null;
+    if(options.all){for(const timer of measureTimers.values())clearTimeout(timer);measureTimers.clear();measures.clear();drawMeasurement();return;}
+    const actor=ownActor(),entry=measures.get(actor);
+    if(entry){if(options.notify!==false&&!entry.private&&state().scene&&(state().role==='dm'||ctx.room().status==='online'))ctx.commitCommand({type:'measure-clear',id:entry.id});removeMeasurement(actor,entry.id);}
+  }
+  function preview(command){
+    const event=normalizeMeasurement(state().scene,ownActor(),command);if(!event)return;
+    acceptMeasurement({...event,...actorStyle(ownActor())});
+    if(event.private)return;
+    if(state().role==='dm')publishThrottled(command);else if(ctx.room().status==='online')publishThrottled(command);
+  }
+  function publishThrottled(command){
+    pendingMeasure=command;const elapsed=Date.now()-lastMeasureSent;
+    if(elapsed>=MEASURE_SEND_MS){flushMeasurement();return;}
+    if(!sendTimer)sendTimer=setTimeout(flushMeasurement,MEASURE_SEND_MS-elapsed);
+  }
+  function flushMeasurement(){
+    clearTimeout(sendTimer);sendTimer=null;if(!pendingMeasure)return;
+    const command=pendingMeasure;pendingMeasure=null;lastMeasureSent=Date.now();ctx.commitCommand(command);
+  }
+  function beginMeasurement(point){
+    cancelPending();const start=cellCenter(point,state().scene.grid,state().scene.map);
+    gesture={id:uid(),mode:'measurement',start};preview({type:'measure',sceneId:state().scene.id,id:gesture.id,measureKind:'measurement',points:[start,start],final:false});
+  }
+  function updateMeasurement(point){
+    if(gesture?.mode!=='measurement')return;
+    const end=cellCenter(point,state().scene.grid,state().scene.map);gesture.end=end;
+    preview({type:'measure',sceneId:state().scene.id,id:gesture.id,measureKind:'measurement',points:[gesture.start,end],final:false});
+  }
+  function endMeasurement(cancel=false){
+    if(cancel){clearMeasurement();return;}if(gesture?.mode!=='measurement')return;
+    const command={type:'measure',sceneId:state().scene.id,id:gesture.id,measureKind:'measurement',points:[gesture.start,gesture.end||gesture.start],final:true};
+    cancelPending();const event=normalizeMeasurement(state().scene,ownActor(),command);if(event)acceptMeasurement({...event,...actorStyle(ownActor())});if(state().role==='dm'||ctx.room().status==='online')ctx.commitCommand(command);gesture=null;
+  }
+  function movement(token,x,y){
+    if(gesture?.mode!=='movement'||gesture.tokenId!==token.id){cancelPending();gesture={id:uid(),mode:'movement',tokenId:token.id};}
+    preview({type:'measure',sceneId:state().scene.id,id:gesture.id,measureKind:'movement',tokenId:token.id,to:{x,y},final:false});
+  }
+  function endMovement(cancel=false){
+    cancelPending();if(cancel){clearMeasurement();return;}
+    const own=measures.get(ownActor());if(own)acceptMeasurement({...own,final:true});gesture=null;
+  }
+  function moveCommitted(actor,before,after){
+    if(!before||!after)return;
+    const previous=measures.get(actor),id=previous?.measureKind==='movement'&&previous.tokenId===after.id?previous.id:uid();
+    publishMeasurement(committedMovement(state().scene,actor,before,after,id));
+  }
+  function pruneMeasurements(){
+    for(const [actor,event] of measures){
+      if(event.measureKind!=='movement'||event.private)continue;
+      const token=state().scene?.tokens.find(t=>t.id===event.tokenId);
+      if(token&&!token.hidden)continue;
+      removeMeasurement(actor,event.id);
+      if(state().role==='dm'&&state().roomActive)ctx.room().broadcastEvent({kind:'measure-clear',actor,id:event.id,sceneId:state().scene.id});
+    }
+  }
+  function drawMeasurement(){
+    const layer=$('measure-layer');if(!layer)return;
+    if(!state().scene||!measures.size){layer.replaceChildren();$('measure-readout').hidden=true;return;}
+    const scale=ctx.camera().scale,stroke=2.3/scale,r=4/scale,format=n=>Number(n).toLocaleString(ctx.language(),{maximumFractionDigits:1});
+    layer.innerHTML=[...measures.values()].map(event=>{
+      const [a,b]=event.points,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-20/scale;
+      const shortName=String(event.name).length>18?String(event.name).slice(0,17)+'…':event.name;
+      const label=`${shortName} · ${format(event.feet)} ${t('feet')} · ${format(event.squares)} ${t('squares')}`,width=Math.min(295,Math.max(95,label.length*6.3+22));
+      return `<g class="measure-annotation" data-actor="${esc(event.actor)}" data-measure-id="${esc(event.id)}" data-final="${event.final?'true':'false'}"><polyline points="${event.points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${event.color}" stroke-width="${stroke}" stroke-dasharray="${7/scale} ${4/scale}"/>${event.points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${event.color}" stroke="#283c2f" stroke-width="${1/scale}"/>`).join('')}<g class="measure-label" transform="translate(${mx} ${my}) scale(${1/scale})"><rect x="${-width/2}" y="-14" width="${width}" height="28" rx="8" fill="#172e28" fill-opacity=".96" stroke="${event.color}" stroke-width="1"/><text class="measure-label-text" x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff8e5" stroke="none">${esc(label)}</text></g></g>`;
+    }).join('');
+    const own=measures.get(ownActor());$('measure-readout').hidden=!own;
+    if(own)$('measure-value').textContent=`${t(own.measureKind)}: ${format(own.feet)} ${t('feet')} · ${format(own.squares)} ${t('squares')}`;
+  }
   function paintCamera(){drawMeasurement();for(const el of $('pings').children)el.style.transform=`scale(${1/ctx.camera().scale})`;}
-  function changedScene(){clearMeasurement();$('pings').replaceChildren();for(const timer of pingTimers)clearTimeout(timer);pingTimers.clear();if(panel)render();}
+  function changedScene(){clearMeasurement({all:true,notify:false});$('pings').replaceChildren();for(const timer of pingTimers)clearTimeout(timer);pingTimers.clear();if(panel)render();}
   function onState(sceneChanged=false){
-    refreshUndo();const last=state().sharedRolls?.at(-1);
+    refreshUndo();if(!sceneChanged)pruneMeasurements();const last=state().sharedRolls?.at(-1);
     if(receivedState&&last&&last.id!==lastRollId)notifyRoll(last);lastRollId=last?.id||'';receivedState=true;
     if(sceneChanged)changedScene();else if(panel==='dice')renderRollHistory();else if(panel==='loot'&&state().role==='player')renderLoot();
   }
@@ -160,5 +257,5 @@ export function createFeatures(ctx){
     }
   }
   async function init(){try{templates=(await listTemplates()).map(normalizeTemplate);}catch{toast(t('templateSaveFailed'));}refreshUndo();}
-  return {action,init,applyCommand,receiveEvent,onState,refreshUndo,changedScene,hidePanel,render,rememberToken,importTemplates,beginMeasurement,updateMeasurement,movement,endMovement,clearMeasurement,paintCamera,undoAvailable};
+  return {action,init,applyCommand,receiveEvent,onState,refreshUndo,changedScene,hidePanel,render,rememberToken,importTemplates,beginMeasurement,updateMeasurement,movement,endMovement,endMeasurement,moveCommitted,pruneMeasurements,clearMeasurement,paintCamera,undoAvailable};
 }

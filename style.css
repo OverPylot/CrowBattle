@@ -11,3 +11,6 @@
 @media(max-height:540px) and (orientation:landscape){.table-tools{top:67px;bottom:auto;left:10px;gap:1px}.table-tools .tool{width:34px;height:34px}#feature-panel{top:65px;bottom:12px;left:auto;right:12px;width:350px;height:auto;max-height:none}#measure-readout{bottom:20px}.token-context{bottom:18px}.zoom-controls{top:auto;bottom:14px}}
 @media(prefers-reduced-motion:reduce){.ping-marker{animation:none}}
 .die-count{min-height:44px}.die-count button{min-width:44px;min-height:44px}
+/* Each die has its own silhouette; labels sit below the drawing. */
+.die-add{height:82px;flex-direction:column;gap:2px;padding:4px 2px 5px}.die-add .die-shape{position:static;width:51px;height:51px;stroke:currentColor;stroke-width:1.7;overflow:visible}.die-add .die-label{position:static;font-size:10px;line-height:1.2;letter-spacing:.04em}.die-stack.has-dice .die-add{color:#315d40}.measure-label-text{font-family:inherit;letter-spacing:.01em}.measure-label rect{filter:drop-shadow(0 2px 3px #0004)}.measure-annotation{pointer-events:none}
+.dice-action-row{display:grid;grid-template-columns:90px 1fr;align-items:end;gap:12px;margin:0 0 12px}.dice-action-row .roll-button{margin:0;min-height:44px}.dice-action-row .dice-modifier{min-height:44px}.dice-secret-option{margin:3px 0 14px;font-size:11px}
