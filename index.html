@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#f6f5f0">
   <meta name="description" content="Kétnyelvű, mobilbarát virtuális játékasztal. Saját térképek, tokenek és közös D&D-kalandok.">
   <title>Kalandasztal · A te játékasztalod</title>
-  <link rel="icon" href="./assets/favicon.svg?v=0.4.0" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=0.4.0">
+  <link rel="icon" href="./assets/favicon.svg?v=0.4.1" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=0.4.1">
   <script defer src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./app.js?v=0.4.0"></script>
+  <script type="module" src="./app.js?v=0.4.1"></script>
 </head>
 <body>
   <svg class="icon-defs" aria-hidden="true"><defs>
@@ -57,7 +57,7 @@
       <div class="role-row"><div class="role-switch" role="tablist" aria-label="Role"><button id="dm-tab" class="active" role="tab" aria-selected="true" data-action="role-dm"><svg><use href="#i-dice"/></svg><span data-t="dmRole">Én mesélek</span><span class="role-tag">DM</span></button><button id="player-tab" role="tab" aria-selected="false" data-action="role-player"><svg><use href="#i-users"/></svg><span data-t="playerRole">Játszani jöttem</span></button></div><span class="role-note" data-t="noAccount">Nincs regisztráció. Csak a kaland.</span></div>
       <section id="library" role="tabpanel" aria-labelledby="dm-tab"><div class="section-row"><div><h2 data-t="yourMaps">A térképeid</h2><p data-t="mapsCopy">Készítsd elő a következő helyszínt, vagy folytasd, ahol abbahagytátok.</p></div><button class="button secondary" data-action="import"><svg><use href="#i-upload"/></svg><span data-t="import">Mentés betöltése</span></button></div><div id="map-cards" class="map-cards"></div><div class="library-foot"><span><svg><use href="#i-check"/></svg><span data-t="localFoot">A térképeid ezen az eszközön maradnak. Készíts róluk letölthető mentést.</span></span><span class="small-label">MADE FOR YOUR PARTY</span></div></section>
       <section id="join-section" hidden role="tabpanel" aria-labelledby="player-tab"><div class="join-layout"><div class="join-copy"><span class="section-number">02 / PLAYER</span><h2 data-t="joinHeading">A csapat már vár.</h2><p data-t="joinCopy">Kérd el a szobakódot a mesélőtől, és foglalj helyet az asztalnál.</p><div class="connection-note"><svg><use href="#i-link"/></svg><span data-t="joinNote">A mesélő tartsa nyitva az oldalt játék közben.</span></div></div><form id="join-form" class="join-form"><label><span data-t="nickname">Becenév</span><input id="nickname" name="nickname" required maxlength="30" autocomplete="nickname" placeholder="pl. Liora" data-placeholder="nicknamePlaceholder"></label><label><span data-t="roomCode">Szobakód</span><input id="join-code" name="code" required minlength="12" maxlength="16" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></label><button class="button primary" type="submit"><span data-t="join">Csatlakozás</span><svg><use href="#i-arrow"/></svg></button><p id="join-status" class="form-status" aria-live="polite"></p></form></div></section>
-      <footer class="home-footer"><span>KALANDASZTAL <span class="version">/ 04</span></span><span data-t="footer">Kevesebb menü. Több játék.</span><button class="text-button" data-action="help" data-t="how">Hogyan működik?</button></footer>
+      <footer class="home-footer"><span>KALANDASZTAL <span class="version">/ 04.1</span></span><span data-t="footer">Kevesebb menü. Több játék.</span><button class="text-button" data-action="help" data-t="how">Hogyan működik?</button></footer>
     </main>
   </section>
 

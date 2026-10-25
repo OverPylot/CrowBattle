@@ -1,4 +1,4 @@
-import {uid} from './model.js?v=0.4.0';
+import {uid} from './model.js?v=0.4.1';
 export const cleanCode = value => String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 export const displayCode = value => cleanCode(value).match(/.{1,4}/g)?.join('-')||'';
 export function generateCode(){const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from(crypto.getRandomValues(new Uint8Array(12)),n=>alphabet[n%32]).join('');}

@@ -63,6 +63,6 @@ test('visible enemy movement shares its cost but excludes private budget numbers
   const h=harness(),enemy=h.scene.tokens.find(t=>t.hidden);enemy.hidden=false;enemy.initiative=27;enemy.movement={limit:97,spent:52};h.scene.encounter={running:true,round:1,activeId:enemy.id,order:[enemy.id]};
   try{
     assert.equal(h.features.applyCommand('player',{type:'measure',id:'enemy-cost',sceneId:h.scene.id,measureKind:'movement',tokenId:enemy.id,to:{x:64,y:192}}),true);
-    assert.equal(h.sent.length,1);assert.equal(h.sent[0].cost,55);assert.equal(h.sent[0].overBudget,true);assert.equal(h.sent[0].remaining,null);assert.ok(!('overspent' in h.sent[0]));
+    assert.equal(h.sent.length,1);assert.equal(h.sent[0].cost,55);assert.equal(h.sent[0].overBudget,true);assert.equal(h.sent[0].remaining,null);assert.equal(h.sent[0].spent,null);assert.equal(h.sent[0].limit,null);assert.ok(!('overspent' in h.sent[0]));
   }finally{h.features.clearMeasurement({all:true,notify:false});}
 });

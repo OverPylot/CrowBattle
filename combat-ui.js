@@ -1,5 +1,5 @@
-import {STATUS_CATALOG,statusIcon} from './conditions.js?v=0.4.0';
-import {initiativeOrder,normalizeArea} from './combat.js?v=0.4.0';
+import {STATUS_CATALOG,statusIcon} from './conditions.js?v=0.4.1';
+import {initiativeOrder,normalizeArea} from './combat.js?v=0.4.1';
 export function createCombatUI(ctx){
   const {$,esc,icon,modal,closeModal,field,submitButton,cancelButton,state}=ctx;
   const L=(hu,en)=>ctx.language()==='hu'?hu:en;
@@ -67,15 +67,23 @@ export function createCombatUI(ctx){
       return `<g transform="translate(${a.x} ${a.y}) rotate(${a.rotation})" fill="${a.color}" fill-opacity=".24" stroke="${a.color}" stroke-width="2" vector-effect="non-scaling-stroke">${shape}<circle r="4" fill="${a.color}" fill-opacity="1"/></g>`;
     }).join('');
   }
-  function decorateToken(t,el){
-    el.style.setProperty('--badge-scale',1/ctx.camera().scale);
-    const badges=document.createElement('div');badges.className='token-badges';badges.style.setProperty('--badge-scale',1/ctx.camera().scale);
-    for(const item of t.statuses.slice(0,3)){const s=STATUS_CATALOG.find(s=>s.id===item.id);if(!s)continue;const b=document.createElement('span');b.className='condition-badge';b.style.setProperty('--condition-color',s.color);b.title=(ctx.language()==='hu'?s.hu:s.en)+(item.count>1?' ×'+item.count:'');b.innerHTML=statusIcon(s.id)+(item.count>1?`<b>${item.count}</b>`:'');badges.append(b);}
-    if(t.statuses.length>3){const b=document.createElement('span');b.className='condition-overflow';b.textContent='+'+(t.statuses.length-3);badges.append(b);}el.append(badges);
-    if(state.scene.encounter.running&&state.scene.encounter.activeId===t.id)el.classList.add('active-turn');
-    if(state.scene.encounter.running&&state.scene.encounter.order.includes(t.id)&&!t.movement.private){const b=document.createElement('span');b.className='token-movement'+(t.movement.spent>t.movement.limit?' over-budget':'');b.style.setProperty('--badge-scale',1/ctx.camera().scale);b.textContent=`${Math.max(0,t.movement.limit-t.movement.spent)} / ${t.movement.limit}`;el.append(b);}
+  function sizeToken(t,el){
+    const scale=ctx.camera().scale,screenSize=Math.min(t.w,t.h)*scale,factor=Math.max(.65,Math.min(1,screenSize/48)),slots=screenSize<40?1:screenSize<60?2:3;
+    el.style.setProperty('--badge-scale',1/scale);el.style.setProperty('--marker-scale',factor/scale);el.style.setProperty('--movement-scale',Math.max(.8,Math.min(1,screenSize/48))/scale);
+    const badges=el.querySelector('.token-badges');if(!badges||badges.dataset.slots===String(slots))return;
+    badges.dataset.slots=slots;badges.replaceChildren();
+    for(const item of t.statuses.slice(0,slots)){const s=STATUS_CATALOG.find(s=>s.id===item.id);if(!s)continue;const b=document.createElement('span');b.className='condition-badge';b.style.setProperty('--condition-color',s.color);b.title=(ctx.language()==='hu'?s.hu:s.en)+(item.count>1?' ×'+item.count:'');b.innerHTML=statusIcon(s.id)+(item.count>1?`<b>${item.count}</b>`:'');badges.append(b);}
+    if(t.statuses.length>slots){const b=document.createElement('span');b.className='condition-overflow';b.textContent='+'+(t.statuses.length-slots);badges.append(b);}
   }
-  function paintCamera(){document.querySelectorAll('.token,.token-badges,.token-movement').forEach(el=>el.style.setProperty('--badge-scale',1/ctx.camera().scale));}
+  function decorateToken(t,el){
+    const badges=document.createElement('div');badges.className='token-badges';el.append(badges);sizeToken(t,el);
+    if(state.scene.encounter.running&&state.scene.encounter.activeId===t.id)el.classList.add('active-turn');
+    if(state.scene.encounter.running&&state.scene.encounter.order.includes(t.id)&&!t.movement.private){const b=document.createElement('span');b.className='token-movement'+(t.movement.spent>t.movement.limit?' over-budget':'');b.textContent=`${t.movement.spent}/${t.movement.limit} ft`;el.append(b);}
+  }
+  function paintCamera(){
+    const tokens=new Map((state.scene?.tokens||[]).map(t=>[t.id,t]));for(const el of $('tokens').children){const t=tokens.get(el.dataset.id);if(t)sizeToken(t,el);}
+  }
+
   function render(){if(!state.scene){hide();return;}renderOverlay();renderPanel();if($('modal').open&&$('status-list'))statusRows();modeHint();}
   function action(action,el){
     switch(action){

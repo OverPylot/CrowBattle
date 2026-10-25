@@ -1,4 +1,4 @@
-import {STATUS_CATALOG} from './conditions.js?v=0.4.0';
+import {STATUS_CATALOG} from './conditions.js?v=0.4.1';
 const ids=new Set(STATUS_CATALOG.map(s=>s.id));
 const n=(v,d,min,max)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):d;
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
@@ -39,7 +39,7 @@ export function movementCost(scene,token,to){
     cost+=hard?10:5;if(hard)difficult++;
   }
   const tracked=!token.movement?.private&&scene.encounter?.running===true&&scene.encounter.order.includes(token.id),spent=token.movement?.spent||0,limit=token.movement?.limit??30;
-  return {cost,difficult,tracked,remaining:tracked?Math.max(0,limit-spent-cost):null,overBudget:tracked&&spent+cost>limit,overspent:tracked?Math.max(0,spent+cost-limit):0};
+  return {cost,difficult,tracked,spent:token.movement?.private?null:(tracked?spent+cost:cost),limit:token.movement?.private?null:limit,remaining:tracked?Math.max(0,limit-spent-cost):null,overBudget:tracked&&spent+cost>limit,overspent:tracked?Math.max(0,spent+cost-limit):0};
 }
 export function applyCombatCommand(scene,actor,cmd){
   if(!cmd||typeof cmd!=='object')return null;const dm=actor==='dm';

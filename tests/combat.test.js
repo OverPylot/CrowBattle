@@ -5,7 +5,7 @@ import {normalizeStatuses,movementCost,applyCombatCommand,normalizeTerrain} from
 import {committedMovement} from '../measurement.js';
 const setup=()=>{const s=makeDemo(),a=s.tokens[0],b=s.tokens[1];Object.assign(a,{x:0,y:0,initiative:20});Object.assign(b,{x:0,y:128,initiative:10});applyCombatCommand(s,'dm',{type:'encounter',action:'start'});return {s,a,b};};
 test('movement accumulates, permits overage, refunds undo and resets only at next own turn',()=>{
-  const {s,a,b}=setup();moveToken(s,a,320,0);assert.equal(a.movement.spent,25);assert.equal(movementCost(s,a,{x:384,y:0}).remaining,0);
+  const {s,a,b}=setup();moveToken(s,a,320,0);assert.equal(a.movement.spent,25);assert.equal(movementCost(s,a,{x:384,y:0}).remaining,0);assert.equal(movementCost(s,a,{x:384,y:0}).spent,30);assert.equal(movementCost(s,a,{x:384,y:0}).limit,30);
   const before=structuredClone(a);moveToken(s,a,448,0);assert.equal(a.movement.spent,35);assert.equal(committedMovement(s,'dm',before,a,'test').overBudget,true);
   assert.equal(undoMove(s,true),true);assert.equal(a.movement.spent,25);
   applyCombatCommand(s,'dm',{type:'encounter',action:'next'});assert.equal(s.encounter.activeId,b.id);assert.equal(a.movement.spent,25);

@@ -1,10 +1,10 @@
-import {applyCombatCommand,syncEncounter} from './combat.js?v=0.4.0';
-import {createCombatUI} from './combat-ui.js?v=0.4.0';
-import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.4.0';
-import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.4.0';
-import {messages} from './i18n.js?v=0.4.0';
-import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.4.0';
-import {createFeatures} from './features.js?v=0.4.0';
+import {applyCombatCommand,syncEncounter} from './combat.js?v=0.4.1';
+import {createCombatUI} from './combat-ui.js?v=0.4.1';
+import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.4.1';
+import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.4.1';
+import {messages} from './i18n.js?v=0.4.1';
+import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.4.1';
+import {createFeatures} from './features.js?v=0.4.1';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

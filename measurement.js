@@ -1,5 +1,5 @@
-import {movementCost} from './combat.js?v=0.4.0';
-import {clamp,snapPosition,measureDistance} from './model.js?v=0.4.0';
+import {movementCost} from './combat.js?v=0.4.1';
+import {clamp,snapPosition,measureDistance} from './model.js?v=0.4.1';
 export const MEASURE_FADE_MS=3000;
 export const MEASURE_IDLE_MS=10000;
 export const MEASURE_SEND_MS=100;

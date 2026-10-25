@@ -1,3 +1,16 @@
+# A 0.4.1-es javítás ellenőrzése
+
+2026. október 25. Mind a 31 teszt sikeres; a 13 JavaScript-modul szintaktikai ellenőrzése sikeres.
+
+- 29%-os asztali térképnagyításon az állapotikon mért szélessége 12,35 képpont, a korábbi 27 helyett. Kicsi tokennél egy ikon és `+N` látszik; nagyításkor további ikonok jelennek meg.
+- 25 láb elköltése után a vonalon pontosan `25/30 ft` jelent meg, egy 57,2 × 20 képpontos címkében. A második, alsó mozgásdoboz rejtve maradt.
+- Két élő WebRTC-böngészőlapon azonos `30/30 ft`, majd piros `35/30 ft` felirat jelent meg. A token alatti számpár is az elköltött keretet mutatta.
+- 390×844-es telefonos nézetben 28%-os illesztésnél is kb. 12 pixeles ikonok látszanak; nincs vízszintes oldal-túlcsordulás.
+- A módosított teszt ellenőrzi a körön belüli összegzett költség és keret számértékeit, valamint az ellenfél privát számainak kiszűrését a közös mérési eseményekből.
+- A játékos böngészőnaplójában nem volt alkalmazáshiba. Fizikai Android-készülékes próba nem történt.
+
+A 0.4-es funkciók korábbi ellenőrzése:
+
 # A 0.4-es változat ellenőrzése
 
 2026. október 25.

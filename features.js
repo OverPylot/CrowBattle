@@ -1,8 +1,8 @@
-import {diceIcon} from './dice-icons.js?v=0.4.0';
-import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.4.0';
-import {BUILTIN_TOKENS} from './tokens.js?v=0.4.0';
-import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.4.0';
-import {listTemplates,saveTemplate} from './storage.js?v=0.4.0';
+import {diceIcon} from './dice-icons.js?v=0.4.1';
+import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.4.1';
+import {BUILTIN_TOKENS} from './tokens.js?v=0.4.1';
+import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.4.1';
+import {listTemplates,saveTemplate} from './storage.js?v=0.4.1';
 
 export function createFeatures(ctx){
   const {$,t,esc,icon,toast,modal,closeModal,field,submitButton,cancelButton}=ctx;
@@ -137,7 +137,7 @@ export function createFeatures(ctx){
     // Starting a private DM line also clears any prior public line by that actor.
     if(event.private&&previous&&!previous.private&&state().roomActive)ctx.room().broadcastEvent({kind:'measure-clear',actor:event.actor,id:previous.id,sceneId:event.sceneId});
     const decorated={...event,...actorStyle(event.actor)};acceptMeasurement(decorated);
-    if(!event.private&&state().roomActive){const {private:privateFlag,...publicEvent}=decorated;const token=state().scene.tokens.find(t=>t.id===event.tokenId);if(token&&token.owner==='dm'&&!token.party){publicEvent.remaining=null;delete publicEvent.overspent;}ctx.room().broadcastEvent(publicEvent);}
+    if(!event.private&&state().roomActive){const {private:privateFlag,...publicEvent}=decorated;const token=state().scene.tokens.find(t=>t.id===event.tokenId);if(token&&token.owner==='dm'&&!token.party){publicEvent.remaining=null;publicEvent.spent=null;publicEvent.limit=null;delete publicEvent.overspent;}ctx.room().broadcastEvent(publicEvent);}
   }
   function removeMeasurement(actor,id){
     const current=measures.get(actor);if(!current||current.id!==id)return;
@@ -204,19 +204,18 @@ export function createFeatures(ctx){
   function drawMeasurement(){
     const layer=$('measure-layer');if(!layer)return;
     if(!state().scene||!measures.size){layer.replaceChildren();$('measure-readout').hidden=true;return;}
-    const scale=ctx.camera().scale,stroke=2.3/scale,r=4/scale,format=n=>Number(n).toLocaleString(ctx.language(),{maximumFractionDigits:1});
+    const scale=ctx.camera().scale,format=n=>Number(n).toLocaleString(ctx.language(),{maximumFractionDigits:1});
     layer.innerHTML=[...measures.values()].map(event=>{
-      const [a,b]=event.points,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-20/scale;
-      const shortName=String(event.name).length>18?String(event.name).slice(0,17)+'…':event.name;
-      const costLabel=event.measureKind==='movement'?`${t('movementCost')}: ${format(event.cost??event.feet)} ${t('feet')}${event.tracked&&event.remaining!==null?' · '+t('remaining')+': '+format(event.remaining):''}${event.overBudget?' · '+t('overBudget'):''}`:'';
-      if(event.overBudget)event={...event,color:'#ff7770'};
-      const label=`${shortName} · ${format(event.feet)} ${t('feet')} · ${format(event.squares)} ${t('squares')}`,width=Math.min(295,Math.max(95,Math.max(label.length,costLabel.length)*6.3+22));
-      return `<g class="measure-annotation" data-actor="${esc(event.actor)}" data-measure-id="${esc(event.id)}" data-final="${event.final?'true':'false'}"><polyline points="${event.points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${event.color}" stroke-width="${stroke}" stroke-dasharray="${7/scale} ${4/scale}"/>${event.points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${event.color}" stroke="#283c2f" stroke-width="${1/scale}"/>`).join('')}<g class="measure-label" transform="translate(${mx} ${my}) scale(${1/scale})"><rect x="${-width/2}" y="-14" width="${width}" height="${costLabel?47:28}" rx="8" fill="#172e28" fill-opacity=".96" stroke="${event.color}" stroke-width="1"/><text class="measure-label-text" x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff8e5" stroke="none">${esc(label)}</text>${costLabel?`<text x="0" y="23" text-anchor="middle" font-size="10.5" font-weight="600" fill="${event.overBudget?'#ffaaa3':'#f3d6a4'}" stroke="none">${esc(costLabel)}</text>`:''}</g></g>`;
+      const movement=event.measureKind==='movement',[a,b]=event.points,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-(movement?12:20)/scale;
+      const shortName=String(event.name||'').slice(0,18);
+      const label=movement?(Number.isFinite(event.limit)&&Number.isFinite(event.spent)?`${format(event.spent)}/${format(event.limit)} ft`:`${format(event.cost??event.feet)} ft`):`${shortName} · ${format(event.feet)} ${t('feet')} · ${format(event.squares)} ${t('squares')}`;
+      const width=Math.max(movement?44:65,label.length*(movement?5.4:6)+14),height=movement?20:24,color=event.overBudget?'#ff7770':event.color;
+      return `<g class="measure-annotation" data-actor="${esc(event.actor)}" data-measure-id="${esc(event.id)}" data-final="${event.final?'true':'false'}"><polyline points="${event.points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${color}" stroke-width="${(movement?1.7:2.3)/scale}" stroke-dasharray="${6/scale} ${4/scale}"/>${event.points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${(movement?2.5:4)/scale}" fill="${color}" stroke="#283c2f" stroke-width="${.8/scale}"/>`).join('')}<g class="measure-label${movement?' movement-label':''}" transform="translate(${mx} ${my}) scale(${1/scale})"><rect x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" rx="5" fill="#172e28" fill-opacity=".94" stroke="${color}" stroke-width=".8"/><text class="measure-label-text" x="0" y="3.5" text-anchor="middle" font-size="${movement?10:11}" font-weight="600" fill="${event.overBudget?'#ffaaa3':'#fff8e5'}" stroke="none">${esc(label)}</text></g></g>`;
     }).join('');
-    const own=measures.get(ownActor());$('measure-readout').hidden=!own;
-    if(own)$('measure-readout').classList.toggle('over-budget',!!own.overBudget);
-    if(own)$('measure-value').textContent=`${t(own.measureKind)}: ${format(own.feet)} ${t('feet')} · ${format(own.squares)} ${t('squares')}${own.measureKind==='movement'?' · '+t('movementCost')+': '+format(own.cost??own.feet):''}${own.overBudget?' · '+t('overBudget'):''}`;
+    const own=measures.get(ownActor());$('measure-readout').hidden=!own||own.measureKind==='movement';
+    if(own&&own.measureKind!=='movement')$('measure-value').textContent=`${format(own.feet)} ${t('feet')} · ${format(own.squares)} ${t('squares')}`;
   }
+
   function paintCamera(){drawMeasurement();for(const el of $('pings').children)el.style.transform=`scale(${1/ctx.camera().scale})`;}
   function changedScene(){clearMeasurement({all:true,notify:false});$('pings').replaceChildren();for(const timer of pingTimers)clearTimeout(timer);pingTimers.clear();if(panel)render();}
   function onState(sceneChanged=false){

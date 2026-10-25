@@ -1,6 +1,6 @@
 {
   "name": "kalandasztal",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "description": "A mobile-friendly Hungarian and English peer-to-peer virtual tabletop, ready for GitHub Pages.",
