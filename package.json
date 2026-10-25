@@ -1,0 +1,11 @@
+{
+  "name": "kalandasztal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A mobile-friendly Hungarian and English peer-to-peer virtual tabletop, ready for GitHub Pages.",
+  "scripts": {
+    "test": "node --test tests/model.test.js",
+    "check": "node --check app.js && node --check room.js && node --test tests/model.test.js"
+  }
+}
