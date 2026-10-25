@@ -1,8 +1,8 @@
-import {uid} from './model.js';
+import {uid} from './model.js?v=0.2.0';
 export const cleanCode = value => String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 export const displayCode = value => cleanCode(value).match(/.{1,4}/g)?.join('-')||'';
 export function generateCode(){const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from(crypto.getRandomValues(new Uint8Array(12)),n=>alphabet[n%32]).join('');}
-const peerID=code=>'kalandasztal-v1-'+cleanCode(code);
+const peerID=code=>'kalandasztal-v2-'+cleanCode(code);
 
 // Signaling: public PeerJS Cloud. Game authority and private state: DM browser.
 // No credentials, TURN keys or paid services are included.
@@ -29,7 +29,7 @@ export class Room {
   reconnectSignaling(peer){clearTimeout(this.signalTimer);this.signalTimer=setTimeout(()=>{if(this.peer!==peer||this.intentional)return;try{if(peer.disconnected&&!peer.destroyed)peer.reconnect();}catch{}},2500);}
   accept(conn,generation){
     const meta=conn.metadata||{};
-    if(typeof meta.credential!=='string'||!/^[a-f0-9-]{60,100}$/.test(meta.credential)||typeof meta.name!=='string'||!meta.name.trim()){
+    if(meta.protocol!==2||typeof meta.credential!=='string'||!/^[a-f0-9-]{60,100}$/.test(meta.credential)||typeof meta.name!=='string'||!meta.name.trim()){
       conn.on('open',()=>conn.close());return;
     }
     conn.on('error',()=>{});
@@ -40,7 +40,7 @@ export class Room {
       member.name=meta.name.trim().slice(0,30);
       // A new connection using the same saved credential replaces its old tab.
       for(const [old,entry] of this.clients)if(entry.member.id===member.id){this.clients.delete(old);old.close();}
-      this.clients.set(conn,{member,lastMap:null,count:0,since:Date.now()});
+      this.clients.set(conn,{member,lastMap:null,lastScene:null,count:0,since:Date.now()});
       this.hooks.members?.(this.members);this.sendView(conn,true);this.broadcast();this.hooks.participants?.(this.participants());
     });
     conn.on('data',message=>{
@@ -60,10 +60,11 @@ export class Room {
     const entry=this.clients.get(conn);if(!entry||!conn.open)return;
     const view=this.hooks.view?.(this.participants());if(!view)return;
     const src=view.map.src;
-    if(entry.lastMap===src)view.map.src=null;
-    try{conn.send({type:welcome?'welcome':'state',participantId:entry.member.id,scene:view});entry.lastMap=src;}catch{}
+    if(entry.lastMap===src&&entry.lastScene===view.id)view.map.src=null;
+    try{conn.send({type:welcome?'welcome':'state',participantId:entry.member.id,scene:view});entry.lastMap=src;entry.lastScene=view.id;}catch{}
   }
   broadcast(){for(const conn of this.clients.keys())this.sendView(conn);}
+  broadcastEvent(event){for(const conn of this.clients.keys())if(conn.open)try{conn.send({type:'event',event});}catch{}}
   join(code,name,credential){
     this.stop();this.mode='player';this.code=cleanCode(code);this.name=name;this.credential=credential;this.attempts=0;this.intentional=false;
     if(!globalThis.Peer){this.statusChanged('failed','cloudError');return;}
@@ -84,13 +85,14 @@ export class Room {
     clearTimeout(this.retryTimer);clearTimeout(this.connectTimer);
     const generation=this.generation;
     const old=this.conn;this.conn=null;if(old)old.close();
-    const conn=this.peer.connect(peerID(this.code),{reliable:true,serialization:'binary',metadata:{name:this.name,credential:this.credential}});
+    const conn=this.peer.connect(peerID(this.code),{reliable:true,serialization:'binary',metadata:{protocol:2,name:this.name,credential:this.credential}});
     this.conn=conn;
     this.connectTimer=setTimeout(()=>{if(this.conn===conn&&this.status!=='online'){conn.close();this.scheduleRetry();}},14000);
     conn.on('data',message=>{
       if(this.conn!==conn||generation!==this.generation||!message||typeof message!=='object')return;
       if(message.type==='closed'){this.intentional=true;clearTimeout(this.retryTimer);this.statusChanged('closed','closed');conn.close();return;}
       if(message.type==='rejected'){this.hooks.rejected?.();return;}
+      if(message.type==='event'){this.hooks.event?.(message.event);return;}
       if((message.type==='welcome'||message.type==='state')&&message.scene){
         clearTimeout(this.joinTimer);clearTimeout(this.connectTimer);clearTimeout(this.retryTimer);this.attempts=0;
         this.statusChanged('online');this.hooks.state?.(message.scene,message.participantId);

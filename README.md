@@ -1,70 +1,50 @@
-# Kalandasztal
+# Kalandasztal 0.2
 
-Magyar–angol, mobilbarát virtuális játékasztal D&D-hez. Statikus weboldal, amely saját szerver, telepítés és buildelés nélkül feltölthető GitHub Pages-re.
+Magyar–angol, mobilbarát virtuális játékasztal D&D-hez. Saját szerver, buildelés és csomagtelepítés nélkül feltölthető GitHub Pages-re. A DM böngészője tartja össze a játékot, az egymásra találást az ingyenes PeerJS Cloud segíti.
 
-## Ingyenes közzététel GitHub Pages-en
+- Első indítás: [INDULAS.md](INDULAS.md).
+- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.2.md](FRISSITES-v0.2.md).
+- Ellenőrzés és annak határai: [ELLENORZES.md](ELLENORZES.md).
 
-A részletes magyar útmutató: [INDULAS.md](INDULAS.md).
+## Ingyenes közzététel
 
-1. Hozz létre egy **Public** GitHub repositoryt, például `kalandasztal` néven.
-2. A kicsomagolt csomag **tartalmát** töltsd fel a repó gyökerébe. Az `index.html` közvetlenül a gyökérben legyen. Ne a ZIP-et töltsd fel.
-3. **Settings → Pages → Build and deployment → Source: Deploy from a branch.**
-4. Válaszd a **main** ágat és a **/ (root)** mappát, majd **Save**.
-5. A GitHub által kiírt oldalcímen nyisd meg a játékasztalt. PeerJS-fiók, API-kulcs és külön szerver nem kell.
+1. Hozz létre egy **Public** GitHub-repót, például `kalandasztal` néven.
+2. A kicsomagolt alkalmazás **tartalmát** töltsd fel a repó gyökerébe. Az `index.html` közvetlenül a gyökérben legyen; az `assets/` és `vendor/` mappák is kerüljenek fel.
+3. **Settings → Pages → Source: Deploy from a branch → main → / (root) → Save.**
+4. Nyisd meg a GitHub által megadott HTTPS-címet. PeerJS-fiók vagy API-kulcs nem kell.
 
-Ingyenes GitHub-fióknál a kódtár nyilvános. A saját térképeidet és mentéseidet nem kell a repóba feltöltened; azokat az alkalmazáson belül használod.
+A GitHubra csak az alkalmazás kódját és a mellékelt grafikákat töltöd fel. A saját térképeid és mentéseid a böngészőben maradnak.
 
-## Mit tud az első változat?
+## Funkciók
 
-- DM- és játékoskezdőképernyő, regisztráció nélkül.
-- DM-térképtár automatikus IndexedDB-mentéssel, mentés exportálása/importálása.
-- PNG, JPG és WebP térképfeltöltés, legfeljebb 20 MB bemeneti fájllal. A térkép legfeljebb 4096 képpont hosszú oldalra lesz kicsinyítve.
-- Négyzetrács: méret, eltolás, szín, átlátszóság, vonalvastagság és rácshoz igazítás. 1 mező = 5 láb.
-- Tokenfeltöltés, elhelyezés, mozgatás, név és szín; 1×1–5×5 mezős, illetve szabad szélességű/magasságú méret.
-- A játékosok a saját tokenjeiket kezelik; a DM minden tokent kezelhet, és hozzárendelheti a figurákat a már csatlakozott játékosokhoz.
-- A DM elrejtheti és visszahozhatja a tokeneket. Rejtett token nem szerepel a játékosoknak küldött állapotban.
-- Tizenkét karakteres szobakód és játékoslink; mentett játékosazonosító visszatéréshez.
-- Kétujjas nagyítás, érintéses mozgatás, külön kéz eszköz; álló és fekvő mobilnézet.
-- Résztvevőnként külön magyar vagy angol kezelőfelület.
-- Két saját készítésű SVG-mintatérkép.
+- DM- és játékoskezdőképernyő, beceneves belépés szobakóddal vagy játékoslinkkel.
+- Automatikusan mentett helyi térképtár, letölthető és visszatölthető biztonsági másolattal. A 0.1-es mentések támogatottak.
+- PNG, JPG és WebP térképfeltöltés. Legfeljebb 20 MB bemeneti kép; a hosszabb oldal legfeljebb 4096 pixelre lesz kicsinyítve.
+- Négyzetrács: mezőméret, eltolás, szín, átlátszóság, vonalvastagság, rácshoz igazítás. 1 mező = 5 láb.
+- Tokenfeltöltés, név, szín, 1×1–5×5 mezős és szabad szélességű/magasságú méretezés.
+- Minden látható tokent bárki mozgathat; szerkeszteni és törölni a tulajdonosa vagy a DM tudja. A DM elrejtheti és visszahozhatja a figurákat. A rejtett token nem szerepel a játékosoknak küldött állapotban.
+- Mozgatás visszavonása, térképenként legfeljebb 50 bejegyzéssel; Ctrl/Cmd+Z.
+- Négyzetrácsos távolságmérés és a tokenmozgatás közbeni közvetlen út jelzése. Átlósan is 5 láb egy mező.
+- Névvel jelzett, minden résztvevőnél megjelenő térképi ping.
+- Jelenetváltás a szobakód és a kapcsolat megtartásával; csapattagnak jelölt figurák átvitele.
+- Kereshető tokentár: 12 kasztfigura egy-egy alosztály alapján, 6 ellenfél, 4 civil, 1 VIP. Saját, egységes SVG-portrék.
+- Saját tokenek elmentése, másolása; külön tokentár-export és -import.
+- Térképenként mentett és DM által megosztható zsákmánylista.
+- Összeállítható kockadobások: d4, d6, d8, d10, d12, d20, d100. Kattintás hozzáad, mínusz elvesz; kevert dobás és módosító is használható.
+- Közös dobáselőzmény és külön titkos DM-dobás. A titkos dobások nem kerülnek át a játékosokhoz, az aktuális DM-térképpel mentődnek.
+- Érintéses mozgatás, kétujjas nagyítás, álló és fekvő mobilnézet, résztvevőnként külön magyar/angol felület.
 
-Nincs karakterlap, chat, köd, harckövető, kockadobás vagy képes/leveles megosztás. A loot funkció nem része ennek az első változatnak; a működése még egyeztetésre vár.
-
-## Hogyan működik a szoba?
-
-A DM böngészője a játékállapot gazdája. A játékosok WebRTC-adatkapcsolatokon csatlakoznak hozzá. A DM ellenőrzi a tokenműveleteket, és minden résztvevőnek csak a számára látható állapotot küldi.
-
-A kezdeti egymásra találást a **PeerJS Cloud** ingyenes signaling szolgáltatása végzi. Alapesetben a PeerJS nyilvános alapértelmezett STUN-beállítását használjuk. A PeerJS-függőség helyben, verzióhoz kötve a `vendor/` mappában található (1.5.5).
-
-A DM böngészőjének **nyitva és aktívan kell maradnia**. Telefonos háttérbe helyezés, képernyőzár vagy energiatakarékosság megszakíthatja a játékot. A képernyő ébren tartását az alkalmazás megkísérli, ha a böngésző támogatja. Hosszabb játékhoz a DM-nek számítógép ajánlott, miközben a játékosok telefonról is csatlakozhatnak.
-
-Kapcsolatvesztés után a játékos automatikusan megpróbál visszatérni. Visszalépéskor új állapotot kap a DM-től; az offline mozgatás tiltott. Oldalfrissítés után a szobakóddal újra be kell lépni. A mentett helyi játékosazonosító az adott szobában visszaadja a saját tokenek kezelését.
-
-Egyes mobil-, vállalati vagy szigorú NAT-hálózatokon a közvetlen WebRTC-kapcsolat **nem működik TURN-továbbító nélkül**. Ehhez a csomaghoz nem tartozik TURN-szolgáltatás vagy beépített fizetős szolgáltatás. A kapcsolódást a saját eszközeitekkel és hálózataitokkal is próbáljátok ki. Az ingyenes PeerJS szolgáltatás elérhetősége külső függőség.
-
-Nincs termékbeli játékoslétszám-korlát. A tényleges létszám a DM eszközétől, a feltöltési sebességtől és a térképek méretétől függ; 5–10 játékos egyidejű működése ebben a kiadásban még nem lett terhelésesen igazolva. A térképen 1000 token technikai védőkorlát van.
-
-## Mentés és DM-link
-
-- A térképek, képek és tokenek az adott oldalhoz tartozó böngészőtárban maradnak.
-- Másik böngésző, eszköz vagy webcím külön tárat jelent. A localhoston elkészített térképek sem kerülnek át automatikusan a GitHub Pages-es címre.
-- A böngészőadatok törlése törölheti a mentéseket. Inkognitómód helyett normál böngészőablakot használj, és tölts le biztonsági mentést.
-- A mentés `.kalandasztal.json` fájl. Tartalmazza a térképet, a rejtett tokeneket és képeket is, ezért DM-mentésként kezeld.
-- Az export nem tartalmaz DM-belépési kulcsot vagy játékos-hitelesítő adatot. Importáláskor új térkép keletkezik, és minden token kezelője a DM lesz; az új szobában újra hozzárendelhetők a figurák.
-- A **DM gyorslink** kizárólag az ugyanebben a böngészőben mentett térképet nyitja meg. Nem felhőmentés és nem másik gépről használható mesélői belépés. Az újranyitott térképen a „Szoba indítása” gombbal indul újra a közös játék.
-- A játékosnak a **játékoslinket vagy szobakódot** add át.
+Karakterlap, chat, köd, harckövető, automatikus lootfelvétel és képes/leveles megosztás nincs ebben a változatban.
 
 ## Helyi előnézet
 
-A fájlokat HTTP-n kell kiszolgálni; az `index.html` dupla kattintásos `file://` megnyitása az ES-modulok miatt nem megfelelő.
-
-Python 3-mal a projekt mappájában:
+A projekt mappájában Python 3-mal:
 
 ```sh
 python3 -m http.server 4173
 ```
 
-Majd nyisd meg: `http://localhost:4173`. A távoli játékhoz a GitHub Pages HTTPS-címét használd. Nem kell a saját hálózatod portjait megnyitnod.
+Nyisd meg a `http://localhost:4173` címet. A `file://` megnyitás nem megfelelő az ES-modulokhoz. Távoli játékhoz a GitHub Pages HTTPS-címét használd.
 
 ## Fejlesztői ellenőrzés
 
@@ -74,13 +54,23 @@ Node.js 20 vagy újabb esetén nincs szükség csomagtelepítésre:
 npm run check
 ```
 
-A tesztek a rejtett adatok kiszűrését, a tokenjogosultságokat, a bemeneti ellenőrzést, a rácsigazítást és a szobakódokat vizsgálják.
+A tesztek a jogosultságokat, a titkos adatok kiszűrését, a dobásokat, a visszavonást, a csapat átvitelét, a rácsmérést és a korábbi mentések kompatibilitását is vizsgálják.
 
-## Források és külső kód
+## Adattárolás és hálózat
 
-- [GitHub Pages létrehozása](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)
-- [GitHub Pages publikálási forrása](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
-- [PeerJS dokumentáció és hálózati korlátok](https://peerjs.com/client/faq)
+A korábbi `kalandasztal-v1` IndexedDB-adatbázist használjuk a térképekhez. A saját tokentár külön `kalandasztal-tokens-v1` helyi adatbázisban van. A böngészőadatok törlése a mentéseket is törölheti; exportálj biztonsági másolatot. Másik webcím, eszköz vagy böngésző külön térképtárat jelent.
+
+A DM gyorslink ugyanabban a böngészőben nyitja meg a mentett térképet; nem felhőmentés és nem eszközök közötti átvitel. Az exportált DM-térképmentés rejtett tokeneket, rejtett zsákmányt és titkos dobásokat is tartalmazhat. Nem tartalmaz DM-belépési kulcsot vagy játékos-hitelesítő adatokat. Importáláskor új térkép keletkezik, és minden token kezelője a DM lesz.
+
+A DM lapjának aktívan nyitva kell maradnia. A képernyőzár vagy telefonos energiatakarékosság megszakíthatja a játékot. A képernyő ébren tartását az alkalmazás megkísérli, ha a böngésző támogatja. Játékosoldalon újracsatlakozáskor friss állapotot kapunk; az offline módosítás tiltott.
+
+A PeerJS Cloud ingyenes signaling szolgáltatása külső függőség. Egyes hálózatokon külön TURN-továbbító kellhet a WebRTC-kapcsolathoz; ilyet ez a csomag nem tartalmaz. Nincs termékbeli játékoslétszám-korlát, de a teljesítmény a DM eszközétől, a feltöltési sebességtől és a képek méretétől függ. A térképen 1000 token technikai határ van.
+
+## Források
+
+- [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)
+- [PeerJS és a hálózati korlátok](https://peerjs.com/client/faq)
+- [D&D Free Rules – kasztok és alosztályok](https://www.dndbeyond.com/sources/dnd/br-2024/character-classes)
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
 
-A PeerJS MIT-licencét a `vendor/PEERJS-LICENSE.txt` tartalmazza. A mintatérképek és a felület saját, e projekthez készített SVG/CSS-elemek; a projekt nem használ Owlbear Rodeo-eredetű grafikai anyagokat.
+A helyben mellékelt PeerJS 1.5.5 MIT-licence: `vendor/PEERJS-LICENSE.txt`. A portrék, a mintatérképek és a felület saját SVG/CSS-elemek; hivatalos D&D- és Owlbear-grafika nincs a csomagban.

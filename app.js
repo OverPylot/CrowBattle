@@ -1,14 +1,15 @@
-import {normalizeScene,normalizeToken,makeDemo,playerView,applyPlayerCommand,snapPosition,clamp,uid,PALETTE,validImage} from './model.js';
-import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js';
-import {messages} from './i18n.js';
-import {Room,generateCode,cleanCode,displayCode} from './room.js';
+import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.2.0';
+import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.2.0';
+import {messages} from './i18n.js?v=0.2.0';
+import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.2.0';
+import {createFeatures} from './features.js?v=0.2.0';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
 let lang=readPref('language','hu');if(!messages[lang])lang='hu';
 const t=key=>messages[lang][key]??key;
-const state={scenes:[],scene:null,role:null,myId:null,participants:[],tool:'select',selected:null,roomActive:false,saveFailed:false,align:false};
+const state={scenes:[],scene:null,role:null,myId:null,participants:[],tool:'select',selected:null,roomActive:false,saveFailed:false,align:false,sharedRolls:[],sharedLoot:null,canUndo:false};
 let toastTimer,saveTimer,lastSave=Promise.resolve(),modalSubmit=null,modalCleanup=null,uploadedToken='',tokenColor=PALETTE[0],joining=false;
 let camera={x:0,y:0,scale:1};
 let lastView={width:0,height:0},isFitted=true;
@@ -23,7 +24,7 @@ function translate(){
   document.querySelectorAll('[data-placeholder]').forEach(el=>el.placeholder=t(el.dataset.placeholder));
   document.querySelectorAll('.lang-button').forEach(el=>{el.innerHTML=lang==='hu'?'HU <span>/ EN</span>':'EN <span>/ HU</span>';el.setAttribute('aria-label',lang==='hu'?'Switch to English':'Váltás magyar nyelvre');});
   renderLibrary();updateStatus();
-  if(state.scene){$('scene-title').textContent=sceneName(state.scene);renderTokens();}
+  if(state.scene){$('scene-title').textContent=sceneName(state.scene);renderTokens();}features.render();
 }
 function sceneName(scene){if(scene.name==='Az elfeledett kripta'&&scene.id==='demo-vault')return t('demoVault');if(scene.name==='A régi erdei ösvény'&&scene.id==='demo-woodland')return t('demoWoodland');return scene.name;}
 function roleTab(role){
@@ -52,6 +53,7 @@ function updateStatus(){
   $('connection-button').classList.toggle('offline',room.status!=='online');
   document.querySelectorAll('.dm-only').forEach(el=>el.hidden=state.role!=='dm');
   $('table-hint').textContent=state.align?t('alignMode'):t('tableHint');
+  features.refreshUndo();
 }
 async function persist(){
   clearTimeout(saveTimer);if(state.role!=='dm'||!state.scene)return;
@@ -65,6 +67,7 @@ function changed(){
   state.scene.revision++;state.scene.updatedAt=Date.now();
   $('save-state').textContent=t('saving');clearTimeout(saveTimer);saveTimer=setTimeout(persist,250);
   if(state.roomActive)room.broadcast();
+  features.refreshUndo();
 }
 function renderScene(){
   const scene=state.scene;if(!scene)return;
@@ -80,7 +83,7 @@ function showTable(){
 async function openScene(id){
   const scene=state.scenes.find(s=>s.id===id);if(!scene)return;
   state.scene=structuredClone(scene);state.scene.dmKey ||= uid()+uid();
-  state.role='dm';state.myId='dm';state.participants=[];state.roomActive=false;state.selected=null;state.tool='select';state.align=false;
+  state.role='dm';state.myId='dm';state.participants=[];state.roomActive=false;state.selected=null;state.tool='select';state.align=false;state.sharedRolls=[];features.hidePanel();features.changedScene();
   showTable();setTool('select');await persist();
   history.replaceState(null,'',`${location.pathname}${location.search}#dm=${encodeURIComponent(id)}&key=${encodeURIComponent(state.scene.dmKey)}`);
 }
@@ -88,17 +91,19 @@ async function goHome(){
   if(state.roomActive&&!confirm(t('leaveConfirm')))return;
   if(state.role==='player'&&room.status==='online'&&!confirm(t('leaveConfirm')))return;
   await persist();room.stop(true);state.roomActive=false;state.scene=null;state.role=null;state.selected=null;state.align=false;state.participants=[];
+  features.hidePanel();features.clearMeasurement();
   clearTimeout(saveTimer);$('table').hidden=true;$('home').hidden=false;document.body.classList.remove('table-open');$('join-status').textContent='';joining=false;$('join-form').querySelector('button[type=submit]').disabled=false;
   history.replaceState(null,'',location.pathname+location.search);renderLibrary();
 }
-function setTool(tool){state.tool=tool;document.querySelectorAll('.tool[data-action=select],.tool[data-action=pan]').forEach(el=>el.classList.toggle('active',el.dataset.action===tool));$('viewport').style.cursor=tool==='pan'?'grab':'default';}
+function setTool(tool){state.tool=tool;state.align=false;document.querySelectorAll('.table-tools .tool').forEach(el=>el.classList.toggle('active',el.dataset.action===tool));$('viewport').style.cursor=tool==='pan'?'grab':['ruler','ping'].includes(tool)?'crosshair':'default';if(state.scene)renderGrid();}
 function renderGrid(){
   const g=state.scene.grid;$('map-grid').hidden=!g.enabled;
   const pattern=$('grid-pattern');pattern.setAttribute('width',g.size);pattern.setAttribute('height',g.size);pattern.setAttribute('x',g.x);pattern.setAttribute('y',g.y);
   $('grid-path').setAttribute('d',`M ${g.size} 0 H 0 V ${g.size}`);$('grid-path').setAttribute('stroke',g.color);$('grid-path').setAttribute('stroke-opacity',g.opacity);$('grid-path').setAttribute('stroke-width',g.line);
-  $('grid-origin').hidden=!state.align;$('grid-origin').style.left=g.x+'px';$('grid-origin').style.top=g.y+'px';
+  $('grid-origin').hidden=!state.align;$('grid-origin').style.left=g.x+'px';$('grid-origin').style.top=g.y+'px';features.paintCamera();
 }
 function owns(token){return state.role==='dm'||(token.owner===state.myId&&!token.hidden);}
+function canMove(token){return state.role==='dm'||!token.hidden;}
 function renderTokens(){
   if(!state.scene)return;
   const layer=$('tokens');const present=new Set();
@@ -114,10 +119,11 @@ function renderTokens(){
     if(token.hidden){const indicator=document.createElement('span');indicator.className='hidden-indicator';indicator.innerHTML=icon('hide');el.append(indicator);}
   }
   for(const el of [...layer.children])if(!present.has(el.dataset.id))el.remove();
-  const selected=state.scene.tokens.find(t=>t.id===state.selected&&owns(t));
+  const selected=state.scene.tokens.find(t=>t.id===state.selected&&canMove(t));
   $('token-context').hidden=!selected;if(selected)$('selected-name').textContent=selected.name;else state.selected=null;
+  for(const action of ['edit-token','delete-token'])document.querySelector(`#token-context [data-action="${action}"]`).hidden=!selected||!owns(selected);
 }
-function paintCamera(){$('world').style.transform=`translate(${camera.x}px,${camera.y}px) scale(${camera.scale})`;$('zoom-value').textContent=Math.round(camera.scale*100)+'%';}
+function paintCamera(){$('world').style.transform=`translate(${camera.x}px,${camera.y}px) scale(${camera.scale})`;$('zoom-value').textContent=Math.round(camera.scale*100)+'%';features.paintCamera();}
 function fit(){if(!state.scene||$('table').hidden)return;const view=$('viewport');const padding=innerWidth>600?130:36;camera.scale=clamp(Math.min((view.clientWidth-padding)/state.scene.map.width,(view.clientHeight-90)/state.scene.map.height),.04,3);camera.x=(view.clientWidth-state.scene.map.width*camera.scale)/2;camera.y=(view.clientHeight-state.scene.map.height*camera.scale)/2;lastView={width:view.clientWidth,height:view.clientHeight};isFitted=true;paintCamera();}
 function worldPoint(x,y){return{x:(x-camera.x)/camera.scale,y:(y-camera.y)/camera.scale};}
 function zoom(factor,x=$('viewport').clientWidth/2,y=$('viewport').clientHeight/2){const anchor=worldPoint(x,y);camera.scale=clamp(camera.scale*factor,.04,6);camera.x=x-anchor.x*camera.scale;camera.y=y-anchor.y*camera.scale;isFitted=false;paintCamera();}
@@ -125,12 +131,14 @@ function centerPoint(){return worldPoint($('viewport').clientWidth/2,$('viewport
 function clearSelection(){state.selected=null;renderTokens();}
 function commitCommand(command){
   if(state.role==='player'){
-    if(!room.command(command)){toast(t('needConnection'));return false;}return true;
+    if(!room.command({...command,sceneId:state.scene.id})){toast(t('needConnection'));return false;}return true;
   }
-  if(command.type==='add'){if(state.scene.tokens.length>=1000){toast(t('full'));return false;}const token=normalizeToken({...command.token,id:uid()},state.scene.map,state.scene.grid);Object.assign(token,snapPosition(token,token.x,token.y,state.scene));state.scene.tokens.push(token);state.selected=token.id;}
+  const featureResult=features.applyCommand('dm',command);if(featureResult!==null)return featureResult;
+  if(command.type==='undo'){if(!undoMove(state.scene,true))return false;renderTokens();changed();return true;}
+  if(command.type==='add'){if(state.scene.tokens.length>=1000){toast(t('full'));return false;}const token=normalizeToken({...command.token,id:uid(),name:uniqueTokenName(state.scene,command.token.name)},state.scene.map,state.scene.grid);Object.assign(token,snapPosition(token,token.x,token.y,state.scene));state.scene.tokens.push(token);state.selected=token.id;}
   else{
     const token=state.scene.tokens.find(t=>t.id===command.id);if(!token)return false;
-    if(command.type==='move')Object.assign(token,snapPosition(token,command.x,command.y,state.scene));
+    if(command.type==='move'&&!moveToken(state.scene,token,command.x,command.y))return false;
     if(command.type==='edit')Object.assign(token,normalizeToken({...token,...command.token,id:token.id},state.scene.map,state.scene.grid));
     if(command.type==='delete'){state.scene.tokens=state.scene.tokens.filter(t=>t.id!==token.id);state.selected=null;}
   }
@@ -179,7 +187,7 @@ function downloadScene(scene){
 async function importBackup(file){
   try{
     if(!file||file.size>50*1024*1024)throw new Error();
-    const parsed=JSON.parse(await file.text());if(parsed.format!=='kalandasztal'||parsed.version!==1)throw new Error();
+    const parsed=JSON.parse(await file.text());if(await features.importTemplates(parsed))return;if(parsed.format!=='kalandasztal'||parsed.version!==1)throw new Error();
     const scene=normalizeScene(parsed.scene);scene.id=uid();scene.updatedAt=Date.now();scene.tokens.forEach(token=>token.owner='dm');
     await saveScene(scene);state.scenes.push(scene);renderLibrary();toast(t('backupImported'));
   }catch{toast(t('invalidBackup'));}
@@ -190,12 +198,12 @@ function tokenModal(edit=false){
   const grid=state.scene.grid;const ratio=current?current.w/grid.size:1;const preset=current&&Math.abs(current.w-current.h)<.01&&Number.isInteger(ratio)&&ratio>=1&&ratio<=5?String(ratio):current?'custom':'1';
   uploadedToken=current?.image||'';tokenColor=current?.color||PALETTE[0];
   const ownerOptions=`<option value="dm">${t('dmOwner')}</option>`+state.participants.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} ${p.online?'':t('ownerOffline')}</option>`).join('');
-  modal(t(edit?'editTokenTitle':'addToken'),`<div class="token-preview"><div id="token-preview" class="preview-circle"></div><span class="preview-copy">${t('tokenCopy')}</span></div>${field(t('tokenName'),'token-name',current?.name||'','text',`required maxlength="40" placeholder="${t('tokenNamePlaceholder')}"`)}<label><span>${t('size')}</span><select id="token-size">${[1,2,3,4,5].map(n=>`<option value="${n}" ${preset===String(n)?'selected':''}>${n} × ${n} · ${n*5} ft</option>`).join('')}<option value="custom" ${preset==='custom'?'selected':''}>${t('custom')}</option></select></label><div id="custom-size" class="field-row" ${preset==='custom'?'':'hidden'}>${field(t('width'),'token-width',current?(current.w/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}${field(t('height'),'token-height',current?(current.h/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}</div><label><span>${t('color')}</span><span class="swatches">${PALETTE.map(color=>`<button type="button" class="swatch${color===tokenColor?' active':''}" style="background:${color}" data-action="token-color" data-color="${color}" aria-label="${color}"></button>`).join('')}</span></label><label><span>${t('tokenImage')}</span><input id="token-image" type="file" accept="image/png,image/jpeg,image/webp"></label><button type="button" id="remove-token-image" class="text-button" data-action="remove-token-image" ${uploadedToken?'':'hidden'}>${t('removeImage')}</button>${state.role==='dm'?`<label><span>${t('owner')}</span><select id="token-owner">${ownerOptions}</select></label><label class="check-field"><input id="token-hidden" type="checkbox" ${current?.hidden?'checked':''}><span>${t('hidden')}</span></label>`:''}`,cancelButton()+submitButton(t(edit?'save':'placeToken')),()=>{
+  modal(t(edit?'editTokenTitle':'addToken'),`<div class="token-preview"><div id="token-preview" class="preview-circle"></div><span class="preview-copy">${t('tokenCopy')}</span></div>${field(t('tokenName'),'token-name',current?.name||'','text',`required maxlength="40" placeholder="${t('tokenNamePlaceholder')}"`)}<label><span>${t('size')}</span><select id="token-size">${[1,2,3,4,5].map(n=>`<option value="${n}" ${preset===String(n)?'selected':''}>${n} × ${n} · ${n*5} ft</option>`).join('')}<option value="custom" ${preset==='custom'?'selected':''}>${t('custom')}</option></select></label><div id="custom-size" class="field-row" ${preset==='custom'?'':'hidden'}>${field(t('width'),'token-width',current?(current.w/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}${field(t('height'),'token-height',current?(current.h/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}</div><label><span>${t('color')}</span><span class="swatches">${PALETTE.map(color=>`<button type="button" class="swatch${color===tokenColor?' active':''}" style="background:${color}" data-action="token-color" data-color="${color}" aria-label="${color}"></button>`).join('')}</span></label><label><span>${t('tokenImage')}</span><input id="token-image" type="file" accept="image/png,image/jpeg,image/webp"></label><button type="button" id="remove-token-image" class="text-button" data-action="remove-token-image" ${uploadedToken?'':'hidden'}>${t('removeImage')}</button><label class="check-field token-party"><input id="token-party" type="checkbox" ${(current?.party??state.role==='player')?'checked':''}><span>${t('partyToken')}</span></label>${!edit?`<label class="check-field"><input id="token-save-library" type="checkbox"><span>${t('saveTemplate')}</span></label>`:''}${state.role==='dm'?`<label><span>${t('owner')}</span><select id="token-owner">${ownerOptions}</select></label><label class="check-field"><input id="token-hidden" type="checkbox" ${current?.hidden?'checked':''}><span>${t('hidden')}</span></label>`:''}`,cancelButton()+submitButton(t(edit?'save':'placeToken')),()=>{
     const size=$('token-size').value;
     const w=(size==='custom'?Number($('token-width').value):Number(size))*grid.size,h=(size==='custom'?Number($('token-height').value):Number(size))*grid.size;
     const center=centerPoint();
-    const token={name:$('token-name').value.trim()||t('tokenDefault'),color:tokenColor,image:uploadedToken,w,h,owner:state.role==='dm'?$('token-owner').value:state.myId,hidden:state.role==='dm'&&$('token-hidden').checked,x:current?.x??center.x-w/2,y:current?.y??center.y-h/2};
-    if(commitCommand(edit?{type:'edit',id:current.id,token}:{type:'add',token}))closeModal();
+    const token={party:$('token-party').checked,name:$('token-name').value.trim()||t('tokenDefault'),color:tokenColor,image:uploadedToken,w,h,owner:state.role==='dm'?$('token-owner').value:state.myId,hidden:state.role==='dm'&&$('token-hidden').checked,x:current?.x??center.x-w/2,y:current?.y??center.y-h/2};
+    if(commitCommand(edit?{type:'edit',id:current.id,token}:{type:'add',token})){if($('token-save-library')?.checked)features.rememberToken(token).catch(()=>toast(t('templateSaveFailed')));closeModal();}
   });
   if(current&&state.role==='dm'){const owner=$('token-owner');if(![...owner.options].some(o=>o.value===current.owner)){const option=new Option(current.owner,current.owner);owner.add(option);}owner.value=current.owner;}
   const updateCustomSize=()=>{const custom=$('token-size').value==='custom';$('custom-size').hidden=!custom;$('custom-size').querySelectorAll('input').forEach(input=>input.disabled=!custom);};
@@ -218,8 +226,9 @@ function gridModal(){
 }
 
 const room=new Room({
-  view:participants=>state.scene?playerView(state.scene,participants):null,
-  command:(actor,command)=>{if(state.role!=='dm'||!state.roomActive)return false;const accepted=applyPlayerCommand(state.scene,actor,command);if(accepted){renderTokens();changed();}return accepted;},
+  view:participants=>state.scene?playerView(state.scene,participants,state.sharedRolls):null,
+  command:(actor,command)=>{if(state.role!=='dm'||!state.roomActive||!command||command.sceneId!==state.scene.id)return false;const featureResult=features.applyCommand(actor,command);if(featureResult!==null)return featureResult;const accepted=applyPlayerCommand(state.scene,actor,command);if(accepted){renderTokens();changed();}return accepted;},
+  event:event=>features.receiveEvent(event),
   members:members=>{if(state.role==='dm'&&state.scene?.room){state.scene.room.members=members;changed();}},
   participants:participants=>{state.participants=participants;if($('modal').open&&$('participants'))renderParticipants();},
   status:(status,detail)=>{
@@ -233,12 +242,25 @@ const room=new Room({
   state:(raw,myId)=>{
     try{
       if(raw.map?.src===null){if(!state.scene||state.scene.id!==raw.id){room.conn?.send({type:'request-state'});return;}raw.map.src=state.scene.map.src;}
-      const scene=normalizeScene(raw);const first=whereHome();state.scene=scene;state.role='player';state.myId=myId;state.participants=Array.isArray(raw.participants)?raw.participants:[];
+      const scene=normalizeScene(raw),first=whereHome(),sceneChanged=state.scene?.id!==scene.id;state.scene=scene;state.role='player';state.myId=myId;state.participants=Array.isArray(raw.participants)?raw.participants:[];state.canUndo=raw.canUndo===true;state.sharedLoot=raw.loot?.visible?scene.loot:null;state.sharedRolls=(Array.isArray(raw.rolls)?raw.rolls:[]).map(normalizeRoll).filter(r=>r&&!r.secret);
       joining=false;$('join-form').querySelector('button[type=submit]').disabled=false;
-      if(first){state.selected=null;state.align=false;state.tool='select';showTable();setTool('select');}else renderScene();
+      if(sceneChanged){state.selected=null;drag=null;pinch=null;pointers.clear();}if(first){state.align=false;state.tool='select';showTable();setTool('select');}else{renderScene();if(sceneChanged)fit();}features.onState(sceneChanged);
     }catch{toast(t('networkError'));}
   },
 });
+const features=createFeatures({$,t,esc,icon,toast,modal,closeModal,field,submitButton,cancelButton,state,language:()=>lang,room:()=>room,camera:()=>camera,centerPoint,commitCommand,sceneName,setTool,changed,persist,switchScene});
+async function switchScene(id,bringParty){
+  if(state.role!=='dm'||id===state.scene.id||state.switching)return;
+  const target=state.scenes.find(scene=>scene.id===id);if(!target)return;state.switching=true;
+  try{
+    await persist();const source=state.scene,next=structuredClone(target);
+    next.dmKey ||= uid()+uid();if(state.roomActive)next.room=source.room;
+    if(bringParty)carryParty(source,next);
+    state.scene=next;state.selected=null;state.align=false;drag=null;pinch=null;pointers.clear();
+    renderScene();features.changedScene();fit();changed();await persist();
+    history.replaceState(null,'',`${location.pathname}${location.search}#dm=${encodeURIComponent(id)}&key=${encodeURIComponent(next.dmKey)}`);toast(t('sceneSwitched'));
+  }finally{state.switching=false;}
+}
 function whereHome(){return $('table').hidden;}
 async function startRoom(newCode=false){
   if(state.role!=='dm')return;
@@ -280,6 +302,7 @@ document.addEventListener('click',async event=>{
   const el=event.target.closest('[data-action]');if(!el||el.disabled)return;
   const action=el.dataset.action;
   try{
+    if(await features.action(action,el))return;
     switch(action){
       case'language':lang=lang==='hu'?'en':'hu';writePref('language',lang);if($('modal').open)closeModal();translate();break;
       case'role-dm':roleTab('dm');break;case'role-player':roleTab('player');break;
@@ -321,7 +344,7 @@ $('map-file').addEventListener('change',event=>{const file=event.target.files[0]
 $('import-file').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)importBackup(file);});
 $('join-form').addEventListener('submit',event=>{event.preventDefault();const name=$('nickname').value.trim();if(name)joinRoom($('join-code').value,name);});
 $('join-code').addEventListener('input',event=>{const cursor=event.target.selectionStart;const end=cursor===event.target.value.length;event.target.value=displayCode(event.target.value);if(end)event.target.setSelectionRange(event.target.value.length,event.target.value.length);});
-$('tokens').addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const token=state.scene.tokens.find(t=>t.id===event.target.dataset.id);if(token&&owns(token)){event.preventDefault();state.selected=token.id;renderTokens();tokenModal(true);}});
+$('tokens').addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const token=state.scene.tokens.find(t=>t.id===event.target.dataset.id);if(token&&canMove(token)){event.preventDefault();state.selected=token.id;renderTokens();if(owns(token))tokenModal(true);}});
 
 // Pointer events support touch, mouse and pen without a separate mobile mode.
 const viewport=$('viewport');
@@ -330,14 +353,16 @@ viewport.addEventListener('pointerdown',event=>{
   if(event.button!==0&&event.pointerType==='mouse')return;
   const point=localPoint(event);pointers.set(event.pointerId,point);viewport.setPointerCapture(event.pointerId);
   if(pointers.size===2){
-    if(drag?.kind==='token')renderTokens();drag=null;
+    if(drag?.kind==='token')renderTokens();if(drag?.kind==='token'||drag?.kind==='measure')features.clearMeasurement();drag=null;
     const [a,b]=[...pointers.values()],cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
     pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),scale:camera.scale,anchor:worldPoint(cx,cy)};return;
   }
   if(pointers.size>2)return;
+  if(state.tool==='ruler'){features.beginMeasurement(worldPoint(point.x,point.y));drag={kind:'measure',start:point,moved:false};return;}
+  if(state.tool==='ping'){drag={kind:'pan',start:point,x:camera.x,y:camera.y,moved:false,pingOnTap:true};return;}
   const tokenElement=event.target.closest('.token'),token=tokenElement&&state.scene.tokens.find(t=>t.id===tokenElement.dataset.id);
   if(state.align&&event.target.closest('#grid-origin')){drag={kind:'grid',start:point,x:state.scene.grid.x,y:state.scene.grid.y,moved:false};return;}
-  if(token&&state.tool!=='pan'&&!state.align&&owns(token)){
+  if(token&&state.tool!=='pan'&&!state.align&&canMove(token)){
     if(state.role==='player'&&room.status!=='online'){toast(t('needConnection'));return;}
     state.selected=token.id;renderTokens();drag={kind:'token',id:token.id,start:point,x:token.x,y:token.y,moved:false};
   }else drag={kind:'pan',start:point,x:camera.x,y:camera.y,moved:false,blank:!token};
@@ -348,7 +373,8 @@ viewport.addEventListener('pointermove',event=>{
   if(!drag)return;const dx=point.x-drag.start.x,dy=point.y-drag.start.y;if(Math.hypot(dx,dy)>3)drag.moved=true;
   if(drag.kind==='pan'){camera.x=drag.x+dx;camera.y=drag.y+dy;if(drag.moved)isFitted=false;paintCamera();}
   if(drag.kind==='grid'){state.scene.grid.x=Math.round(drag.x+dx/camera.scale);state.scene.grid.y=Math.round(drag.y+dy/camera.scale);renderGrid();}
-  if(drag.kind==='token'){const token=[...$('tokens').children].find(t=>t.dataset.id===drag.id);if(token){token.style.left=drag.x+dx/camera.scale+'px';token.style.top=drag.y+dy/camera.scale+'px';}}
+  if(drag.kind==='measure')features.updateMeasurement(worldPoint(point.x,point.y));
+  if(drag.kind==='token'){const element=[...$('tokens').children].find(t=>t.dataset.id===drag.id),token=state.scene.tokens.find(t=>t.id===drag.id);if(element&&token){const x=drag.x+dx/camera.scale,y=drag.y+dy/camera.scale;element.style.left=x+'px';element.style.top=y+'px';const preview=snapPosition(token,x,y,state.scene);features.movement({...token,x:drag.x,y:drag.y},preview.x,preview.y);}}
 });
 function endPointer(event,cancel=false){
   if(!pointers.has(event.pointerId))return;const point=localPoint(event);pointers.delete(event.pointerId);
@@ -357,13 +383,15 @@ function endPointer(event,cancel=false){
   }
   if(!drag)return;const ended=drag;drag=null;
   if(ended.kind==='token'&&ended.moved&&!cancel){const token=state.scene.tokens.find(t=>t.id===ended.id);if(token){const position=snapPosition(token,ended.x+(point.x-ended.start.x)/camera.scale,ended.y+(point.y-ended.start.y)/camera.scale,state.scene);const sent=commitCommand({type:'move',id:token.id,...position});if(state.role==='player'&&sent)Object.assign(token,position);}}
+  if(ended.kind==='token')features.endMovement();
+  if(ended.kind==='pan'&&ended.pingOnTap&&!ended.moved&&!cancel){const p=worldPoint(point.x,point.y);commitCommand({type:'ping',sceneId:state.scene.id,...p});}
   if(ended.kind==='grid'&&ended.moved)changed();
   if(ended.kind==='pan'&&!ended.moved&&ended.blank)clearSelection();
   renderTokens();
 }
 viewport.addEventListener('pointerup',event=>endPointer(event));viewport.addEventListener('pointercancel',event=>endPointer(event,true));
 viewport.addEventListener('wheel',event=>{event.preventDefault();const p=localPoint(event);zoom(Math.exp(-event.deltaY*.0015),p.x,p.y);},{passive:false});
-document.addEventListener('keydown',event=>{if($('table').hidden||$('modal').open||/INPUT|TEXTAREA|SELECT/.test(event.target.tagName))return;if(event.key==='Escape'){clearSelection();state.align=false;renderGrid();updateStatus();}if(event.key==='Delete'&&state.selected)commitCommand({type:'delete',id:state.selected});if(event.key==='+'||event.key==='=')zoom(1.2);if(event.key==='-')zoom(1/1.2);});
+document.addEventListener('keydown',event=>{if($('table').hidden||$('modal').open||/INPUT|TEXTAREA|SELECT/.test(event.target.tagName))return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();if(features.undoAvailable())commitCommand({type:'undo'});return;}if(event.key==='Escape'){clearSelection();state.align=false;features.hidePanel();features.clearMeasurement();renderGrid();updateStatus();}if(event.key==='Delete'&&state.selected)commitCommand({type:'delete',id:state.selected});if(event.key==='+'||event.key==='=')zoom(1.2);if(event.key==='-')zoom(1/1.2);});
 window.addEventListener('resize',()=>{if(!state.scene||$('table').hidden)return;if(isFitted){fit();return;}const view=$('viewport');camera.x+=(view.clientWidth-lastView.width)/2;camera.y+=(view.clientHeight-lastView.height)/2;lastView={width:view.clientWidth,height:view.clientHeight};paintCamera();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persist();else if(state.role==='dm'&&state.roomActive&&'wakeLock'in navigator)navigator.wakeLock.request('screen').then(lock=>wakeLock=lock).catch(()=>{});});
 window.addEventListener('pagehide',()=>persist());
@@ -377,7 +405,7 @@ async function initialize(){
       for(const kind of ['vault','woodland']){const scene=makeDemo(kind);await saveScene(scene);state.scenes.push(scene);}writePref('initialized','yes');
     }
   }catch{state.scenes=[makeDemo('vault'),makeDemo('woodland')];toast(t('storageUnavailable'));}
-  renderLibrary();
+  renderLibrary();await features.init();
   const params=new URLSearchParams(location.hash.slice(1));
   if(params.get('join')){roleTab('player');$('join-code').value=displayCode(params.get('join'));$('nickname').focus();}
   if(params.get('dm')){const scene=state.scenes.find(s=>s.id===params.get('dm'));if(scene?.dmKey===params.get('key'))await openScene(scene.id);}

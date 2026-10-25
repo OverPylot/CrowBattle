@@ -1,4 +1,6 @@
-# Így indítsd el ingyen a Kalandasztalt
+# Így indítsd el ingyen a Kalandasztalt 0.2
+
+Ha a korábbi változatot már használod, a [FRISSITES-v0.2.md](FRISSITES-v0.2.md) útmutatót kövesd.
 
 A weboldalt a GitHub Pages szolgálja ki. A játékosok és a mesélő összekapcsolását a PeerJS ingyenes szolgáltatása segíti. Nem kell bankkártya, PeerJS-fiók, API-kulcs, domainvásárlás, saját szerver vagy fizetős tárhely.
 
@@ -45,8 +47,8 @@ Hivatalos segítség: [GitHub Pages beállítása](https://docs.github.com/en/pa
 1. Nyisd meg a saját GitHub Pages-es oldaladat normál böngészőablakban.
 2. Válaszd az **Én mesélek** fület.
 3. Nyisd meg az egyik mintatérképet, vagy válaszd az **Új térkép feltöltése** gombot.
-4. A **rács** eszközzel állítsd a mezők méretét és a háló eltolását. A térképen megjelenő **+** jelölőt húzással is igazíthatod. Befejezéshez nyisd meg újra a rács eszközt.
-5. A **token** eszközzel adj figurákat a térképhez. Választhatsz 1×1–5×5 méretet vagy külön szabad szélességet és magasságot.
+4. A **három pont → Rács beállítása** menüponttal állítsd a mezők méretét és a háló eltolását. A térképen megjelenő **+** jelölőt húzással is igazíthatod. Befejezéshez nyisd meg újra a rács beállításait a hárompontos menüből.
+5. A **token** eszközzel nyisd meg a tokentárat. Válassz egy alapfigurát, vagy készíts saját tokent a panel tetején lévő gombbal. Választhatsz 1×1–5×5 méretet vagy külön szabad szélességet és magasságot.
 6. Tokenre koppintva megjelenik a szerkesztés, törlés és DM-ként az elrejtés/visszahozás eszköze.
 
 Üres területen húzva a térképet mozgatod. A kéz eszköz akkor is a térképet mozgatja, ha egy figuránál indítod a húzást. Két ujjal nagyíthatsz; az illesztés gomb az egész térképet mutatja.
@@ -64,7 +66,7 @@ A szoba tartalmát a kóddal rendelkezők érhetik el. A DM-kezdőképernyőre k
 ## 7. Ments, és folytasd később
 
 - A térkép automatikusan mentődik a **DM böngészőjében**.
-- A letöltés ikon vagy a szobaablak **Mentés letöltése** gombja egy `.kalandasztal.json` fájlt készít.
+- A letöltés ikon vagy a szobaablak vagy a hárompontos menü **Mentés letöltése** gombja egy `.kalandasztal.json` fájlt készít.
 - Másik eszközre költözéskor a kezdőképernyő **Mentés betöltése** gombjával töltsd vissza.
 - Ez a mentés a rejtett ellenfeleket is tartalmazza; mesélői mentésként kezeld.
 - A **DM gyorslink** ugyanebben a böngészőben segít megnyitni a térképet. Másik eszközre nem viszi át a térképtárat.
@@ -79,3 +81,6 @@ A szoba tartalmát a kóddal rendelkezők érhetik el. A DM-kezdőképernyőre k
 5. Bizonyos hálózatokon külön **TURN-továbbító** kell a WebRTC-hez. A csomag nem tartalmaz ilyet, ezért minden hálózaton működő kapcsolatot nem garantál. Az ingyenes PeerJS szolgáltatás kimaradása is megakadályozhatja az új csatlakozásokat.
 
 Ha a helyi térképtár üres: ugyanazt az eszközt, böngészőt és webcímet használod-e? Engedélyezve van-e a webhelyadatok tárolása? A böngészőadatok törlése vagy az inkognitóablak bezárása eltüntetheti a helyi mentést. Ilyenkor a korábban letöltött biztonsági mentésből állítsd vissza.
+
+
+A visszavonás, távolságmérés, ping, jelenetváltás, tokentár, zsákmány és a közös/titkos kockadobás részletes használata: [FRISSITES-v0.2.md](FRISSITES-v0.2.md).

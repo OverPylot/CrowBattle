@@ -10,12 +10,14 @@ test('the player view omits hidden tokens and all DM credentials',()=>{
   assert.equal(view.tokens.length,2);assert.ok(!view.tokens.some(t=>t.id===hidden.id));
   const serialized=JSON.stringify(view);assert.ok(!serialized.includes('SECRET'));assert.ok(!serialized.includes(hidden.name));assert.ok(!('room' in view));assert.ok(!('dmKey' in view));
 });
-test('a player cannot move or delete someone else’s token or mutate the grid',()=>{
+test('players can move visible tokens but cannot edit/delete someone else’s token or mutate the grid',()=>{
   const scene=makeDemo(),token=scene.tokens[0],before=JSON.stringify(scene);
-  assert.equal(applyPlayerCommand(scene,'intruder',{type:'move',id:token.id,x:200,y:300}),false);
+  assert.equal(applyPlayerCommand(scene,'intruder',{type:'move',id:token.id,x:200,y:300}),true);
+  assert.equal(token.x,192);assert.equal(token.y,320);
+  const afterMove=JSON.stringify(scene);
   assert.equal(applyPlayerCommand(scene,'intruder',{type:'delete',id:token.id}),false);
   assert.equal(applyPlayerCommand(scene,'intruder',{type:'grid',grid:{size:999}}),false);
-  assert.equal(JSON.stringify(scene),before);
+  assert.equal(JSON.stringify(scene),afterMove);
 });
 test('token creation assigns ownership and visibility, ignoring forged fields',()=>{
   const scene=makeDemo();assert.equal(applyPlayerCommand(scene,'anna',{type:'add',token:{name:'Ranger',owner:'dm',hidden:true,x:100,y:100,w:128,h:128,color:'#123456'}}),true);
