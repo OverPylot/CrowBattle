@@ -7,7 +7,7 @@ import {createFeatures} from '../features.js';
 const ruler=(scene,extra={})=>({type:'measure',id:'gesture-1',sceneId:scene.id,measureKind:'measurement',points:[{x:5,y:5},{x:260,y:5}],final:true,...extra});
 function harness(){
   const scene=makeDemo(),state={scene,role:'dm',myId:'dm',participants:[{id:'player',name:'Anna'}],roomActive:true};
-  const nodes={'measure-layer':{innerHTML:'',replaceChildren(){this.innerHTML='';}},'measure-readout':{hidden:true},'measure-value':{textContent:''}};
+  const nodes={'measure-layer':{innerHTML:'',replaceChildren(){this.innerHTML='';}},'measure-readout':{hidden:true,classList:{toggle(){}}},'measure-value':{textContent:''}};
   const sent=[];
   const features=createFeatures({state,$:id=>nodes[id],t:key=>key,esc:String,camera:()=>({scale:1}),language:()=> 'en',room:()=>({broadcastEvent:e=>sent.push(e)})});
   return {scene,state,nodes,sent,features};
@@ -57,5 +57,12 @@ test('hiding a token removes its public movement line without transmitting its n
     h.features.applyCommand('player',{type:'measure',id:'visible-1',sceneId:h.scene.id,measureKind:'movement',tokenId:token.id,to:{x:0,y:0}});assert.equal(h.sent.length,1);
     token.hidden=true;h.features.pruneMeasurements();assert.equal(h.sent.length,2);assert.equal(h.sent[1].kind,'measure-clear');assert.ok(!('points'in h.sent[1]));
     assert.equal(h.nodes['measure-layer'].innerHTML,'');
+  }finally{h.features.clearMeasurement({all:true,notify:false});}
+});
+test('visible enemy movement shares its cost but excludes private budget numbers',()=>{
+  const h=harness(),enemy=h.scene.tokens.find(t=>t.hidden);enemy.hidden=false;enemy.initiative=27;enemy.movement={limit:97,spent:52};h.scene.encounter={running:true,round:1,activeId:enemy.id,order:[enemy.id]};
+  try{
+    assert.equal(h.features.applyCommand('player',{type:'measure',id:'enemy-cost',sceneId:h.scene.id,measureKind:'movement',tokenId:enemy.id,to:{x:64,y:192}}),true);
+    assert.equal(h.sent.length,1);assert.equal(h.sent[0].cost,55);assert.equal(h.sent[0].overBudget,true);assert.equal(h.sent[0].remaining,null);assert.ok(!('overspent' in h.sent[0]));
   }finally{h.features.clearMeasurement({all:true,notify:false});}
 });

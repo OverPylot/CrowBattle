@@ -1,6 +1,7 @@
+import {normalizeCombatToken,normalizeTerrain,normalizeEncounter,normalizeArea,movementCost,syncEncounter} from './combat.js?v=0.4.0';
 // Shared data rules. Only the DM browser accepts commands and constructs player views.
-import {TOKEN_ASSETS} from './tokens.js?v=0.3.0';
-export const VERSION=2;
+import {TOKEN_ASSETS} from './tokens.js?v=0.4.0';
+export const VERSION=3;
 export const PALETTE=['#456d5d','#b66c47','#536d91','#896285','#b69b4e','#6c7970','#954e4a'];
 export const DICE=[4,6,8,10,12,20,100];
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -18,7 +19,7 @@ export function normalizeToken(raw,map,grid){
   const w=num(raw.w,grid.size,8,map.width),h=num(raw.h,grid.size,8,map.height);
   return {id:text(raw.id,80)||uid(),name:text(raw.name,40)||'Token',owner:text(raw.owner,80)||'dm',
     x:num(raw.x,0,0,Math.max(0,map.width-w)),y:num(raw.y,0,0,Math.max(0,map.height-h)),w,h,
-    color:/^#[0-9a-f]{6}$/i.test(raw.color)?raw.color:PALETTE[0],image:validImage(raw.image),hidden:raw.hidden===true,party:raw.party===true};
+    color:/^#[0-9a-f]{6}$/i.test(raw.color)?raw.color:PALETTE[0],image:validImage(raw.image),hidden:raw.hidden===true,party:raw.party===true,...normalizeCombatToken(raw)};
 }
 export function normalizeLoot(raw){
   if(!raw||typeof raw!=='object')return {title:'',visible:false,items:[]};
@@ -36,9 +37,9 @@ export function normalizeScene(raw){
   const map={src:validImage(raw.map.src,'map'),width:num(raw.map.width,1280,64,4096),height:num(raw.map.height,896,64,4096)},g=raw.grid||{};
   const grid={enabled:g.enabled!==false,snap:g.snap!==false,size:num(g.size,64,12,500),x:num(g.x,0,-4096,4096),y:num(g.y,0,-4096,4096),color:/^#[0-9a-f]{6}$/i.test(g.color)?g.color:'#f5ebd2',opacity:num(g.opacity,.3,.05,1),line:num(g.line,1,.5,5)};
   const ids=new Set(),tokens=(Array.isArray(raw.tokens)?raw.tokens:[]).slice(0,1000).filter(x=>x&&typeof x==='object').map(x=>normalizeToken(x,map,grid)).filter(x=>{if(ids.has(x.id))return false;ids.add(x.id);return true;});
-  const history=(Array.isArray(raw.history)?raw.history:[]).slice(-50).filter(e=>e&&typeof e.tokenId==='string'&&e.before&&e.after&&[e.before.x,e.before.y,e.after.x,e.after.y].every(Number.isFinite)).map(e=>({tokenId:e.tokenId,before:{x:e.before.x,y:e.before.y},after:{x:e.after.x,y:e.after.y}}));
+  const history=(Array.isArray(raw.history)?raw.history:[]).slice(-50).filter(e=>e&&typeof e.tokenId==='string'&&e.before&&e.after&&[e.before.x,e.before.y,e.after.x,e.after.y].every(Number.isFinite)).map(e=>({tokenId:e.tokenId,before:{x:e.before.x,y:e.before.y},after:{x:e.after.x,y:e.after.y},spentBefore:Number.isFinite(e.spentBefore)?e.spentBefore:null,spentAfter:Number.isFinite(e.spentAfter)?e.spentAfter:null}));
   const privateRolls=(Array.isArray(raw.privateRolls)?raw.privateRolls:[]).slice(-30).map(normalizeRoll).filter(r=>r?.secret);
-  return {version:VERSION,id:text(raw.id,80)||uid(),name:text(raw.name,70)||'Map',map,grid,tokens,loot:normalizeLoot(raw.loot),history,privateRolls,updatedAt:num(raw.updatedAt,Date.now(),0,1e16),revision:num(raw.revision,0,0,1e12)};
+  return {version:VERSION,id:text(raw.id,80)||uid(),name:text(raw.name,70)||'Map',map,grid,tokens,terrain:normalizeTerrain(raw.terrain,map,grid),areas:(Array.isArray(raw.areas)?raw.areas:[]).slice(0,100).map(a=>normalizeArea(a,map)).filter(Boolean),encounter:normalizeEncounter(raw.encounter),loot:normalizeLoot(raw.loot),history,privateRolls,updatedAt:num(raw.updatedAt,Date.now(),0,1e16),revision:num(raw.revision,0,0,1e12)};
 }
 function undoIndex(scene,allowHidden){
   for(let i=(scene.history?.length||0)-1;i>=0;i--){const h=scene.history[i],token=scene.tokens.find(t=>t.id===h.tokenId);if(token&&(allowHidden||!token.hidden)&&token.x===h.after.x&&token.y===h.after.y)return i;}
@@ -46,11 +47,12 @@ function undoIndex(scene,allowHidden){
 }
 export const canUndoMove=(scene,allowHidden=false)=>undoIndex(scene,allowHidden)>=0;
 export function undoMove(scene,allowHidden=false){
-  const i=undoIndex(scene,allowHidden);if(i<0)return false;const entry=scene.history.splice(i,1)[0],token=scene.tokens.find(t=>t.id===entry.tokenId);Object.assign(token,{x:clamp(entry.before.x,0,Math.max(0,scene.map.width-token.w)),y:clamp(entry.before.y,0,Math.max(0,scene.map.height-token.h))});return true;
+  const i=undoIndex(scene,allowHidden);if(i<0)return false;const entry=scene.history.splice(i,1)[0],token=scene.tokens.find(t=>t.id===entry.tokenId);if(entry.spentBefore!==null&&token.movement.spent===entry.spentAfter)token.movement.spent=entry.spentBefore;Object.assign(token,{x:clamp(entry.before.x,0,Math.max(0,scene.map.width-token.w)),y:clamp(entry.before.y,0,Math.max(0,scene.map.height-token.h))});return true;
 }
 export function playerView(scene,participants=[],rolls=[]){
   return {version:VERSION,id:scene.id,name:scene.name,map:{...scene.map},grid:{...scene.grid},
-    tokens:scene.tokens.filter(t=>!t.hidden).map(t=>({id:t.id,name:t.name,owner:t.owner,x:t.x,y:t.y,w:t.w,h:t.h,color:t.color,image:t.image,hidden:false,party:!!t.party})),
+    tokens:scene.tokens.filter(t=>!t.hidden).map(t=>({id:t.id,name:t.name,owner:t.owner,x:t.x,y:t.y,w:t.w,h:t.h,color:t.color,image:t.image,hidden:false,party:!!t.party,statuses:structuredClone(t.statuses),initiative:t.party||t.owner!=='dm'?t.initiative:null,movement:t.party||t.owner!=='dm'?{...t.movement}:{limit:0,spent:0,private:true}})),
+    terrain:structuredClone(scene.terrain),areas:structuredClone(scene.areas),encounter:{...scene.encounter,activeId:scene.tokens.some(t=>t.id===scene.encounter.activeId&&!t.hidden)?scene.encounter.activeId:null,order:scene.encounter.order.filter(id=>scene.tokens.some(t=>t.id===id&&!t.hidden))},
     loot:scene.loot?.visible?structuredClone(scene.loot):null,canUndo:canUndoMove(scene),
     rolls:rolls.filter(r=>r&&!r.secret).slice(-30).map(r=>structuredClone(r)),revision:scene.revision,
     participants:participants.map(p=>({id:p.id,name:p.name,online:!!p.online}))};
@@ -58,7 +60,7 @@ export function playerView(scene,participants=[],rolls=[]){
 export function snapPosition(token,x,y,scene){const g=scene.grid;if(g.enabled&&g.snap){x=Math.round((x-g.x)/g.size)*g.size+g.x;y=Math.round((y-g.y)/g.size)*g.size+g.y;}return {x:clamp(x,0,Math.max(0,scene.map.width-token.w)),y:clamp(y,0,Math.max(0,scene.map.height-token.h))};}
 export function moveToken(scene,token,x,y){
   if(!Number.isFinite(x)||!Number.isFinite(y))return false;const next=snapPosition(token,x,y,scene);
-  if(token.x!==next.x||token.y!==next.y){scene.history||=[];scene.history.push({tokenId:token.id,before:{x:token.x,y:token.y},after:next});scene.history=scene.history.slice(-50);Object.assign(token,next);}return true;
+  if(token.x!==next.x||token.y!==next.y){const movement=movementCost(scene,token,next),spentBefore=token.movement.spent;if(movement.tracked)token.movement.spent+=movement.cost;scene.history||=[];scene.history.push({tokenId:token.id,before:{x:token.x,y:token.y},after:next,spentBefore,spentAfter:token.movement.spent});scene.history=scene.history.slice(-50);Object.assign(token,next);}return true;
 }
 export function uniqueTokenName(scene,name){const base=text(name,34)||'Token';if(!scene.tokens.some(t=>t.name===base))return base;let n=2;while(scene.tokens.some(t=>t.name===`${base} ${n}`))n++;return `${base} ${n}`;}
 export function applyPlayerCommand(scene,actor,command){
@@ -76,7 +78,7 @@ export function applyPlayerCommand(scene,actor,command){
     const f=command.token;if(!f||typeof f!=='object')return false;
     Object.assign(token,normalizeToken({...token,name:f.name,color:f.color,image:f.image,w:f.w,h:f.h,party:f.party},scene.map,scene.grid));return true;
   }
-  if(command.type==='delete'){scene.tokens=scene.tokens.filter(t=>t.id!==token.id);return true;}
+  if(command.type==='delete'){scene.tokens=scene.tokens.filter(t=>t.id!==token.id);syncEncounter(scene);return true;}
   return false;
 }
 export function measureDistance(points,gridSize){

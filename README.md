@@ -1,9 +1,9 @@
-# Kalandasztal 0.3
+# Kalandasztal 0.4
 
 Magyar–angol, mobilbarát virtuális játékasztal D&D-hez. Saját szerver, buildelés és csomagtelepítés nélkül feltölthető GitHub Pages-re. A DM böngészője tartja össze a játékot, az egymásra találást az ingyenes PeerJS Cloud segíti.
 
 - Első indítás: [INDULAS.md](INDULAS.md).
-- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.3.md](FRISSITES-v0.3.md).
+- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.4.md](FRISSITES-v0.4.md).
 - Ellenőrzés és annak határai: [ELLENORZES.md](ELLENORZES.md).
 
 ## Ingyenes közzététel
@@ -35,7 +35,11 @@ A GitHubra csak az alkalmazás kódját és a mellékelt grafikákat töltöd fe
 - Közös dobáselőzmény és külön titkos DM-dobás. A titkos dobások nem kerülnek át a játékosokhoz, az aktuális DM-térképpel mentődnek.
 - Érintéses mozgatás, kétujjas nagyítás, álló és fekvő mobilnézet, résztvevőnként külön magyar/angol felület.
 
-Karakterlap, chat, köd, harckövető, automatikus lootfelvétel és képes/leveles megosztás nincs ebben a változatban.
+- Halmozható, saját ikonos állapotjelölők; tokenenkénti kezdeményezés és közös harckövető.
+- Körönként visszatöltődő mozgáskeret, összegzett költség, piros túllépés és visszavonáskor költség-visszatérítés.
+- Festhető/radírozható nehéz terep, kétszeres mezőköltséggel; közös kör-, kúp- és vonalsablonok.
+
+Karakterlap, chat, köd, automatikus lootfelvétel és képes/leveles megosztás nincs ebben a változatban.
 
 ## Helyi előnézet
 
@@ -55,7 +59,7 @@ Node.js 20 vagy újabb esetén nincs szükség csomagtelepítésre:
 npm run check
 ```
 
-A tesztek a jogosultságokat, a titkos adatok kiszűrését, a dobásokat, a visszavonást, a csapat átvitelét, a rácsmérést és a korábbi mentések kompatibilitását is vizsgálják.
+A tesztek a jogosultságokat, a titkos adatok kiszűrését, a dobásokat, a visszavonást, a csapat átvitelét, a rácsmérést, a mozgáskeretet, a nehéz terepet, a harckövetőt, a jelölőket, a varázsterületeket és a korábbi mentések kompatibilitását is vizsgálják.
 
 ## Adattárolás és hálózat
 

@@ -1,8 +1,8 @@
-import {diceIcon} from './dice-icons.js?v=0.3.0';
-import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.3.0';
-import {BUILTIN_TOKENS} from './tokens.js?v=0.3.0';
-import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.3.0';
-import {listTemplates,saveTemplate} from './storage.js?v=0.3.0';
+import {diceIcon} from './dice-icons.js?v=0.4.0';
+import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.4.0';
+import {BUILTIN_TOKENS} from './tokens.js?v=0.4.0';
+import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.4.0';
+import {listTemplates,saveTemplate} from './storage.js?v=0.4.0';
 
 export function createFeatures(ctx){
   const {$,t,esc,icon,toast,modal,closeModal,field,submitButton,cancelButton}=ctx;
@@ -21,7 +21,7 @@ export function createFeatures(ctx){
   function show(which){if(panel===which){hidePanel();return;}panel=which;render();}
   function renderMore(){
     const dm=state().role==='dm';const item=(action,label,svg,disabled=false)=>`<button class="menu-item" data-action="${action}" ${disabled?'disabled':''}>${icon(svg)}<strong>${t(label)}</strong><span>→</span></button>`;
-    shell(t('more'),`<div class="panel-menu">${item('undo','undo','undo',!undoAvailable())}${item('token','customToken','plus')}${dm?item('scenes','scenes','map')+item('grid','grid','grid'):''}${item('loot','loot','loot')}${dm?item('export','export','down'):''}${item('help','help','help')}</div><p class="panel-copy" style="margin-top:17px">${t('undoCopy')}</p>`,'more');
+    shell(t('more'),`<div class="panel-menu">${item('undo','undo','undo',!undoAvailable())}${item('token','customToken','plus')}${dm?item('scenes','scenes','map')+item('grid','grid','grid'):''}${item('encounter','encounter','combat')}${item('areas','areas','area')}${dm?item('terrain','terrain','terrain'):''}${item('loot','loot','loot')}${dm?item('export','export','down'):''}${item('help','help','help')}</div><p class="panel-copy" style="margin-top:17px">${t('undoCopy')}</p>`,'more');
   }
   function renderLibrary(){
     shell(t('tokenLibrary'),`<p class="panel-copy">${t('libraryCopy')}</p><div class="panel-actions"><button class="button primary" data-action="token">${icon('plus')}${t('customToken')}</button><button class="icon-button" data-action="export-templates" title="${t('libraryExport')}" aria-label="${t('libraryExport')}">${icon('down')}</button><button class="icon-button" data-action="import" title="${t('libraryImport')}" aria-label="${t('libraryImport')}">${icon('upload')}</button></div><input class="token-search" id="token-search" placeholder="${t('searchTokens')}" aria-label="${t('searchTokens')}" value="${esc(search)}"><div class="filter-tabs">${['all','heroes','enemies','civilians','vip','custom'].map(group=>`<button class="${filter===group?'active':''}" data-action="token-filter" data-filter="${group}">${t(group==='all'?'allTokens':group==='custom'?'customTokens':group)}</button>`).join('')}</div><div id="token-catalog" class="token-catalog"></div>`,'token');
@@ -137,7 +137,7 @@ export function createFeatures(ctx){
     // Starting a private DM line also clears any prior public line by that actor.
     if(event.private&&previous&&!previous.private&&state().roomActive)ctx.room().broadcastEvent({kind:'measure-clear',actor:event.actor,id:previous.id,sceneId:event.sceneId});
     const decorated={...event,...actorStyle(event.actor)};acceptMeasurement(decorated);
-    if(!event.private&&state().roomActive){const {private:privateFlag,...publicEvent}=decorated;ctx.room().broadcastEvent(publicEvent);}
+    if(!event.private&&state().roomActive){const {private:privateFlag,...publicEvent}=decorated;const token=state().scene.tokens.find(t=>t.id===event.tokenId);if(token&&token.owner==='dm'&&!token.party){publicEvent.remaining=null;delete publicEvent.overspent;}ctx.room().broadcastEvent(publicEvent);}
   }
   function removeMeasurement(actor,id){
     const current=measures.get(actor);if(!current||current.id!==id)return;
@@ -208,11 +208,14 @@ export function createFeatures(ctx){
     layer.innerHTML=[...measures.values()].map(event=>{
       const [a,b]=event.points,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-20/scale;
       const shortName=String(event.name).length>18?String(event.name).slice(0,17)+'…':event.name;
-      const label=`${shortName} · ${format(event.feet)} ${t('feet')} · ${format(event.squares)} ${t('squares')}`,width=Math.min(295,Math.max(95,label.length*6.3+22));
-      return `<g class="measure-annotation" data-actor="${esc(event.actor)}" data-measure-id="${esc(event.id)}" data-final="${event.final?'true':'false'}"><polyline points="${event.points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${event.color}" stroke-width="${stroke}" stroke-dasharray="${7/scale} ${4/scale}"/>${event.points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${event.color}" stroke="#283c2f" stroke-width="${1/scale}"/>`).join('')}<g class="measure-label" transform="translate(${mx} ${my}) scale(${1/scale})"><rect x="${-width/2}" y="-14" width="${width}" height="28" rx="8" fill="#172e28" fill-opacity=".96" stroke="${event.color}" stroke-width="1"/><text class="measure-label-text" x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff8e5" stroke="none">${esc(label)}</text></g></g>`;
+      const costLabel=event.measureKind==='movement'?`${t('movementCost')}: ${format(event.cost??event.feet)} ${t('feet')}${event.tracked&&event.remaining!==null?' · '+t('remaining')+': '+format(event.remaining):''}${event.overBudget?' · '+t('overBudget'):''}`:'';
+      if(event.overBudget)event={...event,color:'#ff7770'};
+      const label=`${shortName} · ${format(event.feet)} ${t('feet')} · ${format(event.squares)} ${t('squares')}`,width=Math.min(295,Math.max(95,Math.max(label.length,costLabel.length)*6.3+22));
+      return `<g class="measure-annotation" data-actor="${esc(event.actor)}" data-measure-id="${esc(event.id)}" data-final="${event.final?'true':'false'}"><polyline points="${event.points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${event.color}" stroke-width="${stroke}" stroke-dasharray="${7/scale} ${4/scale}"/>${event.points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${event.color}" stroke="#283c2f" stroke-width="${1/scale}"/>`).join('')}<g class="measure-label" transform="translate(${mx} ${my}) scale(${1/scale})"><rect x="${-width/2}" y="-14" width="${width}" height="${costLabel?47:28}" rx="8" fill="#172e28" fill-opacity=".96" stroke="${event.color}" stroke-width="1"/><text class="measure-label-text" x="0" y="4" text-anchor="middle" font-size="11.5" font-weight="600" fill="#fff8e5" stroke="none">${esc(label)}</text>${costLabel?`<text x="0" y="23" text-anchor="middle" font-size="10.5" font-weight="600" fill="${event.overBudget?'#ffaaa3':'#f3d6a4'}" stroke="none">${esc(costLabel)}</text>`:''}</g></g>`;
     }).join('');
     const own=measures.get(ownActor());$('measure-readout').hidden=!own;
-    if(own)$('measure-value').textContent=`${t(own.measureKind)}: ${format(own.feet)} ${t('feet')} · ${format(own.squares)} ${t('squares')}`;
+    if(own)$('measure-readout').classList.toggle('over-budget',!!own.overBudget);
+    if(own)$('measure-value').textContent=`${t(own.measureKind)}: ${format(own.feet)} ${t('feet')} · ${format(own.squares)} ${t('squares')}${own.measureKind==='movement'?' · '+t('movementCost')+': '+format(own.cost??own.feet):''}${own.overBudget?' · '+t('overBudget'):''}`;
   }
   function paintCamera(){drawMeasurement();for(const el of $('pings').children)el.style.transform=`scale(${1/ctx.camera().scale})`;}
   function changedScene(){clearMeasurement({all:true,notify:false});$('pings').replaceChildren();for(const timer of pingTimers)clearTimeout(timer);pingTimers.clear();if(panel)render();}

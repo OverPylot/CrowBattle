@@ -1,8 +1,8 @@
-import {uid} from './model.js?v=0.3.0';
+import {uid} from './model.js?v=0.4.0';
 export const cleanCode = value => String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 export const displayCode = value => cleanCode(value).match(/.{1,4}/g)?.join('-')||'';
 export function generateCode(){const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from(crypto.getRandomValues(new Uint8Array(12)),n=>alphabet[n%32]).join('');}
-const peerID=code=>'kalandasztal-v3-'+cleanCode(code);
+const peerID=code=>'kalandasztal-v4-'+cleanCode(code);
 
 // Signaling: public PeerJS Cloud. Game authority and private state: DM browser.
 // No credentials, TURN keys or paid services are included.
@@ -29,7 +29,7 @@ export class Room {
   reconnectSignaling(peer){clearTimeout(this.signalTimer);this.signalTimer=setTimeout(()=>{if(this.peer!==peer||this.intentional)return;try{if(peer.disconnected&&!peer.destroyed)peer.reconnect();}catch{}},2500);}
   accept(conn,generation){
     const meta=conn.metadata||{};
-    if(meta.protocol!==3||typeof meta.credential!=='string'||!/^[a-f0-9-]{60,100}$/.test(meta.credential)||typeof meta.name!=='string'||!meta.name.trim()){
+    if(meta.protocol!==4||typeof meta.credential!=='string'||!/^[a-f0-9-]{60,100}$/.test(meta.credential)||typeof meta.name!=='string'||!meta.name.trim()){
       conn.on('open',()=>conn.close());return;
     }
     conn.on('error',()=>{});
@@ -85,7 +85,7 @@ export class Room {
     clearTimeout(this.retryTimer);clearTimeout(this.connectTimer);
     const generation=this.generation;
     const old=this.conn;this.conn=null;if(old)old.close();
-    const conn=this.peer.connect(peerID(this.code),{reliable:true,serialization:'binary',metadata:{protocol:3,name:this.name,credential:this.credential}});
+    const conn=this.peer.connect(peerID(this.code),{reliable:true,serialization:'binary',metadata:{protocol:4,name:this.name,credential:this.credential}});
     this.conn=conn;
     this.connectTimer=setTimeout(()=>{if(this.conn===conn&&this.status!=='online'){conn.close();this.scheduleRetry();}},14000);
     conn.on('data',message=>{
