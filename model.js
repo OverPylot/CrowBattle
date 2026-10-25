@@ -1,6 +1,6 @@
-import {normalizeCombatToken,normalizeTerrain,normalizeEncounter,normalizeArea,movementCost,syncEncounter} from './combat.js?v=0.4.1';
+import {normalizeCombatToken,normalizeTerrain,normalizeEncounter,normalizeArea,movementCost,syncEncounter} from './combat.js?v=0.4.2';
 // Shared data rules. Only the DM browser accepts commands and constructs player views.
-import {TOKEN_ASSETS} from './tokens.js?v=0.4.1';
+import {TOKEN_ASSETS} from './tokens.js?v=0.4.2';
 export const VERSION=3;
 export const PALETTE=['#456d5d','#b66c47','#536d91','#896285','#b69b4e','#6c7970','#954e4a'];
 export const DICE=[4,6,8,10,12,20,100];

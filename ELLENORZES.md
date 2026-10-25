@@ -1,3 +1,13 @@
+# A 0.4.2-es javítás ellenőrzése
+
+2026. október 25. **35 teszt sikeres.** A 14 JavaScript-modul szintaktikai ellenőrzése és az SVG-assetek XML-ellenőrzése sikeres.
+
+Az új ellenőrzések: minden térképi felirat és ikon alsó/felső mérethatára, nem véges zoomértékek kezelése, 10 000 frissítés képkockánkénti összevonása, a rajzrétegek kamera szerinti ablakmérete. A teljes próba és annak határai: [FRISSITES-v0.4.2.md](FRISSITES-v0.4.2.md).
+
+4096×4096-os térképpel két teljes 4–600%-os nagyítási ciklus és 600%-on húzás/mérés/mozgatás is sikerült. A 0.4.1-es összeomlás az itteni tesztböngészőben nem reprodukálódott, ezért külön Firefox- és fizikai Android-próba továbbra is szükséges a felhasználónál jelentkező hibára vonatkozó biztos állításhoz.
+
+A korábbi verziók ellenőrzése:
+
 # A 0.4.1-es javítás ellenőrzése
 
 2026. október 25. Mind a 31 teszt sikeres; a 13 JavaScript-modul szintaktikai ellenőrzése sikeres.

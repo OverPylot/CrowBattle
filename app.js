@@ -1,10 +1,11 @@
-import {applyCombatCommand,syncEncounter} from './combat.js?v=0.4.1';
-import {createCombatUI} from './combat-ui.js?v=0.4.1';
-import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.4.1';
-import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.4.1';
-import {messages} from './i18n.js?v=0.4.1';
-import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.4.1';
-import {createFeatures} from './features.js?v=0.4.1';
+import {safeZoom,viewportBox,createFrameScheduler} from './view.js?v=0.4.2';
+import {applyCombatCommand,syncEncounter} from './combat.js?v=0.4.2';
+import {createCombatUI} from './combat-ui.js?v=0.4.2';
+import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.4.2';
+import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.4.2';
+import {messages} from './i18n.js?v=0.4.2';
+import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.4.2';
+import {createFeatures} from './features.js?v=0.4.2';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,6 +15,7 @@ const t=key=>messages[lang][key]??key;
 const state={scenes:[],scene:null,role:null,myId:null,participants:[],tool:'select',selected:null,roomActive:false,saveFailed:false,align:false,sharedRolls:[],sharedLoot:null,canUndo:false};
 let toastTimer,saveTimer,lastSave=Promise.resolve(),modalSubmit=null,modalCleanup=null,uploadedToken='',tokenColor=PALETTE[0],joining=false;
 let camera={x:0,y:0,scale:1};
+const cameraPaint=createFrameScheduler(drawCamera);
 let lastView={width:0,height:0},isFitted=true;
 const pointers=new Map();let drag=null,pinch=null;
 
@@ -74,8 +76,10 @@ function changed(){
 function renderScene(){
   const scene=state.scene;if(!scene)return;
   $('scene-title').textContent=sceneName(scene);
-  $('world').style.width=scene.map.width+'px';$('world').style.height=scene.map.height+'px';
-  if($('map-image').getAttribute('src')!==scene.map.src)$('map-image').src=scene.map.src;
+  for(const id of ['world','token-world']){$(id).style.width=scene.map.width+'px';$(id).style.height=scene.map.height+'px';}
+  $('grid-fill').setAttribute('width',scene.map.width);$('grid-fill').setAttribute('height',scene.map.height);
+  const displaySource=scene.map.src.startsWith('./assets/')?scene.map.src+'?v=0.4.2':scene.map.src;
+  if($('map-image').getAttribute('src')!==displaySource)$('map-image').src=displaySource;
   $('map-image').alt=sceneName(scene);renderGrid();renderTokens();updateStatus();
 }
 function showTable(){
@@ -114,7 +118,7 @@ function renderTokens(){
     let el=[...layer.children].find(el=>el.dataset.id===token.id);
     if(!el){el=document.createElement('div');el.className='token';el.dataset.id=token.id;el.setAttribute('role','button');el.tabIndex=0;layer.append(el);}
     el.className='token'+(token.hidden?' is-hidden':'')+(token.id===state.selected?' is-selected':'')+(!owns(token)?' not-owned':'');
-    el.style.left=token.x+'px';el.style.top=token.y+'px';el.style.width=token.w+'px';el.style.height=token.h+'px';el.style.fontSize=Math.max(12,Math.min(token.w,token.h)*.32)+'px';el.style.setProperty('--token-color',token.color);
+    el.style.left=token.x+'px';el.style.top=token.y+'px';el.style.width=token.w+'px';el.style.height=token.h+'px';el.style.setProperty('--token-color',token.color);
     el.setAttribute('aria-label',token.name+(token.hidden?' · '+t('hidden'):''));
     el.replaceChildren();if(token.image){const image=document.createElement('img');image.src=token.image;image.alt='';image.draggable=false;el.append(image);}else{const initials=document.createElement('span');initials.className='token-initials';initials.textContent=token.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2);el.append(initials);}
     const label=document.createElement('span');label.className='token-label';label.textContent=token.name;el.append(label);
@@ -126,10 +130,20 @@ function renderTokens(){
   $('token-context').hidden=!selected;if(selected)$('selected-name').textContent=selected.name;else state.selected=null;
   for(const action of ['edit-token','delete-token'])document.querySelector(`#token-context [data-action="${action}"]`).hidden=!selected||!owns(selected);
 }
-function paintCamera(){$('world').style.transform=`translate(${camera.x}px,${camera.y}px) scale(${camera.scale})`;$('zoom-value').textContent=Math.round(camera.scale*100)+'%';features.paintCamera();combatUI.paintCamera();}
+function paintCamera(){cameraPaint.schedule();}
+function drawCamera(){
+  camera.scale=safeZoom(camera.scale);
+  const transform=`translate(${camera.x}px,${camera.y}px) scale(${camera.scale})`;$('world').style.transform=transform;$('token-world').style.transform=transform;
+  const view=$('viewport'),box=viewportBox(camera,view.clientWidth,view.clientHeight);
+  for(const id of ['map-grid','terrain-layer','area-layer','measure-layer'])$(id).setAttribute('viewBox',box.join(' '));
+  const label=Math.round(camera.scale*100)+'%';if($('zoom-value').textContent!==label)$('zoom-value').textContent=label;
+  features.paintCamera();combatUI.paintCamera();
+  const origin=$('grid-origin'),inverse=1/camera.scale;origin.style.width=origin.style.height=32*inverse+'px';origin.style.fontSize=24*inverse+'px';origin.style.borderWidth=2*inverse+'px';
+}
+
 function fit(){if(!state.scene||$('table').hidden)return;const view=$('viewport');const padding=innerWidth>600?130:36;camera.scale=clamp(Math.min((view.clientWidth-padding)/state.scene.map.width,(view.clientHeight-90)/state.scene.map.height),.04,3);camera.x=(view.clientWidth-state.scene.map.width*camera.scale)/2;camera.y=(view.clientHeight-state.scene.map.height*camera.scale)/2;lastView={width:view.clientWidth,height:view.clientHeight};isFitted=true;paintCamera();}
 function worldPoint(x,y){return{x:(x-camera.x)/camera.scale,y:(y-camera.y)/camera.scale};}
-function zoom(factor,x=$('viewport').clientWidth/2,y=$('viewport').clientHeight/2){const anchor=worldPoint(x,y);camera.scale=clamp(camera.scale*factor,.04,6);camera.x=x-anchor.x*camera.scale;camera.y=y-anchor.y*camera.scale;isFitted=false;paintCamera();}
+function zoom(factor,x=$('viewport').clientWidth/2,y=$('viewport').clientHeight/2){const anchor=worldPoint(x,y);camera.scale=safeZoom(camera.scale*(Number.isFinite(factor)&&factor>0?factor:1));camera.x=x-anchor.x*camera.scale;camera.y=y-anchor.y*camera.scale;isFitted=false;paintCamera();}
 function centerPoint(){return worldPoint($('viewport').clientWidth/2,$('viewport').clientHeight/2);}
 function clearSelection(){state.selected=null;renderTokens();}
 function commitCommand(command){
@@ -359,7 +373,7 @@ const viewport=$('viewport');
 const localPoint=event=>{const rect=viewport.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};};
 viewport.addEventListener('pointerdown',event=>{
   if(event.button!==0&&event.pointerType==='mouse')return;
-  const point=localPoint(event);pointers.set(event.pointerId,point);viewport.setPointerCapture(event.pointerId);
+  cameraPaint.flush();const point=localPoint(event);pointers.set(event.pointerId,point);viewport.setPointerCapture(event.pointerId);
   if(pointers.size===2){
     if(drag?.kind==='combat')combatUI.pointerEnd(true);if(drag?.kind==='token')renderTokens();if(drag?.kind==='token'||drag?.kind==='measure')features.clearMeasurement();drag=null;
     const [a,b]=[...pointers.values()],cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
@@ -378,7 +392,7 @@ viewport.addEventListener('pointerdown',event=>{
 });
 viewport.addEventListener('pointermove',event=>{
   if(!pointers.has(event.pointerId))return;const point=localPoint(event);pointers.set(event.pointerId,point);
-  if(pinch&&pointers.size>=2){const[a,b]=[...pointers.values()],cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;camera.scale=clamp(pinch.scale*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance,.04,6);camera.x=cx-pinch.anchor.x*camera.scale;camera.y=cy-pinch.anchor.y*camera.scale;isFitted=false;paintCamera();return;}
+  if(pinch&&pointers.size>=2){const[a,b]=[...pointers.values()],cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;camera.scale=safeZoom(pinch.scale*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance);camera.x=cx-pinch.anchor.x*camera.scale;camera.y=cy-pinch.anchor.y*camera.scale;isFitted=false;paintCamera();return;}
   if(!drag)return;const dx=point.x-drag.start.x,dy=point.y-drag.start.y;if(Math.hypot(dx,dy)>3)drag.moved=true;
   if(drag.kind==='pan'){camera.x=drag.x+dx;camera.y=drag.y+dy;if(drag.moved)isFitted=false;paintCamera();}
   if(drag.kind==='grid'){state.scene.grid.x=Math.round(drag.x+dx/camera.scale);state.scene.grid.y=Math.round(drag.y+dy/camera.scale);renderGrid();}
@@ -402,7 +416,7 @@ function endPointer(event,cancel=false){
   renderTokens();
 }
 viewport.addEventListener('pointerup',event=>endPointer(event));viewport.addEventListener('pointercancel',event=>endPointer(event,true));
-viewport.addEventListener('wheel',event=>{event.preventDefault();const p=localPoint(event);zoom(Math.exp(-event.deltaY*.0015),p.x,p.y);},{passive:false});
+viewport.addEventListener('wheel',event=>{event.preventDefault();const p=localPoint(event);if(Number.isFinite(event.deltaY))zoom(Math.exp(-clamp(event.deltaY,-1000,1000)*.0015),p.x,p.y);},{passive:false});
 document.addEventListener('keydown',event=>{if($('table').hidden||$('modal').open||/INPUT|TEXTAREA|SELECT/.test(event.target.tagName))return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();if(features.undoAvailable())commitCommand({type:'undo'});return;}if(event.key==='Escape'){clearSelection();state.align=false;features.hidePanel();combatUI.hide();combatUI.pointerEnd(true);setTool('select');features.clearMeasurement();renderGrid();updateStatus();}if(event.key==='Delete'&&state.selected)commitCommand({type:'delete',id:state.selected});if(event.key==='+'||event.key==='=')zoom(1.2);if(event.key==='-')zoom(1/1.2);});
 window.addEventListener('resize',()=>{if(!state.scene||$('table').hidden)return;if(isFitted){fit();return;}const view=$('viewport');camera.x+=(view.clientWidth-lastView.width)/2;camera.y+=(view.clientHeight-lastView.height)/2;lastView={width:view.clientWidth,height:view.clientHeight};paintCamera();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persist();else if(state.role==='dm'&&state.roomActive&&'wakeLock'in navigator)navigator.wakeLock.request('screen').then(lock=>wakeLock=lock).catch(()=>{});});

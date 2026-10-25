@@ -1,14 +1,15 @@
-import {diceIcon} from './dice-icons.js?v=0.4.1';
-import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.4.1';
-import {BUILTIN_TOKENS} from './tokens.js?v=0.4.1';
-import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.4.1';
-import {listTemplates,saveTemplate} from './storage.js?v=0.4.1';
+import {safeZoom,measurementLabelMetrics} from './view.js?v=0.4.2';
+import {diceIcon} from './dice-icons.js?v=0.4.2';
+import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.4.2';
+import {BUILTIN_TOKENS} from './tokens.js?v=0.4.2';
+import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.4.2';
+import {listTemplates,saveTemplate} from './storage.js?v=0.4.2';
 
 export function createFeatures(ctx){
   const {$,t,esc,icon,toast,modal,closeModal,field,submitButton,cancelButton}=ctx;
   let panel='',filter='all',search='',templates=[],pool={},modifier=0,secret=false,carry=true;
   const measures=new Map(),measureTimers=new Map();let gesture=null,pendingMeasure=null,sendTimer=null,lastMeasureSent=0;
-  const pingTimers=new Set();let receivedState=false,lastRollId='';
+  const pingTimers=new Set();let receivedState=false,lastRollId='',lastPaintScale=null;
   const state=()=>ctx.state;
   const nameOf=template=>template.name||template[ctx.language()]||template.en;
   const allTemplates=()=>[...BUILTIN_TOKENS,...templates];
@@ -204,19 +205,19 @@ export function createFeatures(ctx){
   function drawMeasurement(){
     const layer=$('measure-layer');if(!layer)return;
     if(!state().scene||!measures.size){layer.replaceChildren();$('measure-readout').hidden=true;return;}
-    const scale=ctx.camera().scale,format=n=>Number(n).toLocaleString(ctx.language(),{maximumFractionDigits:1});
+    const scale=safeZoom(ctx.camera().scale),format=n=>Number(n).toLocaleString(ctx.language(),{maximumFractionDigits:1});
     layer.innerHTML=[...measures.values()].map(event=>{
       const movement=event.measureKind==='movement',[a,b]=event.points,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-(movement?12:20)/scale;
       const shortName=String(event.name||'').slice(0,18);
       const label=movement?(Number.isFinite(event.limit)&&Number.isFinite(event.spent)?`${format(event.spent)}/${format(event.limit)} ft`:`${format(event.cost??event.feet)} ft`):`${shortName} · ${format(event.feet)} ${t('feet')} · ${format(event.squares)} ${t('squares')}`;
-      const width=Math.max(movement?44:65,label.length*(movement?5.4:6)+14),height=movement?20:24,color=event.overBudget?'#ff7770':event.color;
-      return `<g class="measure-annotation" data-actor="${esc(event.actor)}" data-measure-id="${esc(event.id)}" data-final="${event.final?'true':'false'}"><polyline points="${event.points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${color}" stroke-width="${(movement?1.7:2.3)/scale}" stroke-dasharray="${6/scale} ${4/scale}"/>${event.points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${(movement?2.5:4)/scale}" fill="${color}" stroke="#283c2f" stroke-width="${.8/scale}"/>`).join('')}<g class="measure-label${movement?' movement-label':''}" transform="translate(${mx} ${my}) scale(${1/scale})"><rect x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" rx="5" fill="#172e28" fill-opacity=".94" stroke="${color}" stroke-width=".8"/><text class="measure-label-text" x="0" y="3.5" text-anchor="middle" font-size="${movement?10:11}" font-weight="600" fill="${event.overBudget?'#ffaaa3':'#fff8e5'}" stroke="none">${esc(label)}</text></g></g>`;
+      const textMetrics=measurementLabelMetrics(scale,movement),width=Math.min(textMetrics.maxWidth,Math.max(movement?44:65,label.length*textMetrics.font*.56+14)),height=textMetrics.height,color=event.overBudget?'#ff7770':event.color;
+      return `<g class="measure-annotation" data-actor="${esc(event.actor)}" data-measure-id="${esc(event.id)}" data-final="${event.final?'true':'false'}"><polyline points="${event.points.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${color}" stroke-width="${(movement?1.7:2.3)/scale}" stroke-dasharray="${6/scale} ${4/scale}"/>${event.points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="${(movement?2.5:4)/scale}" fill="${color}" stroke="#283c2f" stroke-width="${.8/scale}"/>`).join('')}<g class="measure-label${movement?' movement-label':''}" transform="translate(${mx} ${my}) scale(${1/scale})"><rect x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" rx="5" fill="#172e28" fill-opacity=".94" stroke="${color}" stroke-width=".8"/><text class="measure-label-text" x="0" y="3.5" text-anchor="middle" font-size="${textMetrics.font}" font-weight="600" fill="${event.overBudget?'#ffaaa3':'#fff8e5'}" stroke="none">${esc(label)}</text></g></g>`;
     }).join('');
     const own=measures.get(ownActor());$('measure-readout').hidden=!own||own.measureKind==='movement';
     if(own&&own.measureKind!=='movement')$('measure-value').textContent=`${format(own.feet)} ${t('feet')} · ${format(own.squares)} ${t('squares')}`;
   }
 
-  function paintCamera(){drawMeasurement();for(const el of $('pings').children)el.style.transform=`scale(${1/ctx.camera().scale})`;}
+  function paintCamera(){const scale=safeZoom(ctx.camera().scale);if(scale===lastPaintScale)return;lastPaintScale=scale;drawMeasurement();for(const el of $('pings').children)el.style.transform=`scale(${1/scale})`;}
   function changedScene(){clearMeasurement({all:true,notify:false});$('pings').replaceChildren();for(const timer of pingTimers)clearTimeout(timer);pingTimers.clear();if(panel)render();}
   function onState(sceneChanged=false){
     refreshUndo();if(!sceneChanged)pruneMeasurements();const last=state().sharedRolls?.at(-1);

@@ -1,4 +1,4 @@
-import {STATUS_CATALOG} from './conditions.js?v=0.4.1';
+import {STATUS_CATALOG} from './conditions.js?v=0.4.2';
 const ids=new Set(STATUS_CATALOG.map(s=>s.id));
 const n=(v,d,min,max)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):d;
 const finite=v=>typeof v==='number'&&Number.isFinite(v);

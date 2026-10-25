@@ -1,9 +1,10 @@
-import {STATUS_CATALOG,statusIcon} from './conditions.js?v=0.4.1';
-import {initiativeOrder,normalizeArea} from './combat.js?v=0.4.1';
+import {tokenLabelMetrics,safeZoom} from './view.js?v=0.4.2';
+import {STATUS_CATALOG,statusIcon} from './conditions.js?v=0.4.2';
+import {initiativeOrder,normalizeArea} from './combat.js?v=0.4.2';
 export function createCombatUI(ctx){
   const {$,esc,icon,modal,closeModal,field,submitButton,cancelButton,state}=ctx;
   const L=(hu,en)=>ctx.language()==='hu'?hu:en;
-  let panel=false,statusToken=null,pendingArea=null,stroke=null;
+  let panel=false,statusToken=null,pendingArea=null,stroke=null,lastPaintScale=null;
   const owns=t=>state.role==='dm'||t.owner===state.myId;
   const token=()=>state.scene?.tokens.find(t=>t.id===state.selected);
   const footer=()=>cancelButton()+submitButton(L('Mentés','Save'));
@@ -61,15 +62,19 @@ export function createCombatUI(ctx){
   function renderOverlay(){
     const s=state.scene;if(!s)return;const g=s.grid,size=g.size,cells=new Map(s.terrain.map(c=>[c.join(','),c]));
     if(stroke)for(const [key,c] of stroke.cells)if(stroke.erase)cells.delete(key);else cells.set(key,c);
-    $('terrain-layer').innerHTML=`<defs><pattern id="terrain-hatch" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M-3 3 3-3M0 12 12 0M9 15 15 9" stroke="#ffd68c" stroke-opacity=".48" stroke-width="2"/></pattern></defs>${[...cells.values()].map(([x,y])=>`<rect x="${g.x+x*size}" y="${g.y+y*size}" width="${size}" height="${size}" fill="#ad662d" fill-opacity=".3"/><rect x="${g.x+x*size}" y="${g.y+y*size}" width="${size}" height="${size}" fill="url(#terrain-hatch)" stroke="#e8b46a" stroke-opacity=".6" stroke-width="1"/>`).join('')}`;
-    $('area-layer').innerHTML=s.areas.map(a=>{
+    $('terrain-layer').innerHTML=`<defs><clipPath id="terrain-map-clip"><rect width="${s.map.width}" height="${s.map.height}"/></clipPath><pattern id="terrain-hatch" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M-3 3 3-3M0 12 12 0M9 15 15 9" stroke="#ffd68c" stroke-opacity=".48" stroke-width="2"/></pattern></defs><g clip-path="url(#terrain-map-clip)">${[...cells.values()].map(([x,y])=>`<rect x="${g.x+x*size}" y="${g.y+y*size}" width="${size}" height="${size}" fill="#ad662d" fill-opacity=".3"/><rect x="${g.x+x*size}" y="${g.y+y*size}" width="${size}" height="${size}" fill="url(#terrain-hatch)" stroke="#e8b46a" stroke-opacity=".6" stroke-width="1"/>`).join('')}</g>`;
+    $('area-layer').innerHTML=`<defs><clipPath id="area-map-clip"><rect width="${s.map.width}" height="${s.map.height}"/></clipPath></defs><g clip-path="url(#area-map-clip)">`+s.areas.map(a=>{
       const length=a.feet/5*size,width=a.width/5*size,angle=a.angle*Math.PI/180,shape=a.shape==='circle'?`<circle r="${length}"/>`:a.shape==='line'?`<rect x="0" y="${-width/2}" width="${length}" height="${width}"/>`:`<path d="M0 0 L${length*Math.cos(-angle/2)} ${length*Math.sin(-angle/2)} A${length} ${length} 0 0 1 ${length*Math.cos(angle/2)} ${length*Math.sin(angle/2)} Z"/>`;
       return `<g transform="translate(${a.x} ${a.y}) rotate(${a.rotation})" fill="${a.color}" fill-opacity=".24" stroke="${a.color}" stroke-width="2" vector-effect="non-scaling-stroke">${shape}<circle r="4" fill="${a.color}" fill-opacity="1"/></g>`;
-    }).join('');
+    }).join('')+'</g>';
   }
   function sizeToken(t,el){
-    const scale=ctx.camera().scale,screenSize=Math.min(t.w,t.h)*scale,factor=Math.max(.65,Math.min(1,screenSize/48)),slots=screenSize<40?1:screenSize<60?2:3;
-    el.style.setProperty('--badge-scale',1/scale);el.style.setProperty('--marker-scale',factor/scale);el.style.setProperty('--movement-scale',Math.max(.8,Math.min(1,screenSize/48))/scale);
+    const metrics=tokenLabelMetrics(t,ctx.camera().scale),{scale,inverse,slots}=metrics,factor=metrics.marker/19;
+    el.style.fontSize=metrics.initials*inverse+'px';el.style.borderWidth=Math.max(1,Math.min(3,Math.min(t.w,t.h)*scale/24))*inverse+'px';
+    el.style.setProperty('--badge-scale',inverse);el.style.setProperty('--marker-scale',factor*inverse);el.style.setProperty('--movement-scale',inverse);
+    el.style.setProperty('--name-font',metrics.name+'px');el.style.setProperty('--movement-font',metrics.movement+'px');el.style.setProperty('--counter-font',metrics.counter/factor+'px');el.style.setProperty('--hidden-size',metrics.hidden+'px');
+    el.style.setProperty('--token-outline',3*inverse+'px');el.style.setProperty('--token-outline-offset',3*inverse+'px');
+    el.style.setProperty('--token-shadow',`0 ${2*inverse}px ${5*inverse}px #0007`);
     const badges=el.querySelector('.token-badges');if(!badges||badges.dataset.slots===String(slots))return;
     badges.dataset.slots=slots;badges.replaceChildren();
     for(const item of t.statuses.slice(0,slots)){const s=STATUS_CATALOG.find(s=>s.id===item.id);if(!s)continue;const b=document.createElement('span');b.className='condition-badge';b.style.setProperty('--condition-color',s.color);b.title=(ctx.language()==='hu'?s.hu:s.en)+(item.count>1?' ×'+item.count:'');b.innerHTML=statusIcon(s.id)+(item.count>1?`<b>${item.count}</b>`:'');badges.append(b);}
@@ -81,6 +86,7 @@ export function createCombatUI(ctx){
     if(state.scene.encounter.running&&state.scene.encounter.order.includes(t.id)&&!t.movement.private){const b=document.createElement('span');b.className='token-movement'+(t.movement.spent>t.movement.limit?' over-budget':'');b.textContent=`${t.movement.spent}/${t.movement.limit} ft`;el.append(b);}
   }
   function paintCamera(){
+    const scale=safeZoom(ctx.camera().scale);if(scale===lastPaintScale)return;lastPaintScale=scale;
     const tokens=new Map((state.scene?.tokens||[]).map(t=>[t.id,t]));for(const el of $('tokens').children){const t=tokens.get(el.dataset.id);if(t)sizeToken(t,el);}
   }
 

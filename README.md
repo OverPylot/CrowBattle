@@ -1,9 +1,9 @@
-# Kalandasztal 0.4.1
+# Kalandasztal 0.4.2
 
 Magyar–angol, mobilbarát virtuális játékasztal D&D-hez. Saját szerver, buildelés és csomagtelepítés nélkül feltölthető GitHub Pages-re. A DM böngészője tartja össze a játékot, az egymásra találást az ingyenes PeerJS Cloud segíti.
 
 - Első indítás: [INDULAS.md](INDULAS.md).
-- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.4.1.md](FRISSITES-v0.4.1.md).
+- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.4.2.md](FRISSITES-v0.4.2.md).
 - Ellenőrzés és annak határai: [ELLENORZES.md](ELLENORZES.md).
 
 ## Ingyenes közzététel
@@ -35,7 +35,7 @@ A GitHubra csak az alkalmazás kódját és a mellékelt grafikákat töltöd fe
 - Közös dobáselőzmény és külön titkos DM-dobás. A titkos dobások nem kerülnek át a játékosokhoz, az aktuális DM-térképpel mentődnek.
 - Érintéses mozgatás, kétujjas nagyítás, álló és fekvő mobilnézet, résztvevőnként külön magyar/angol felület.
 
-- Kicsinyítéshez igazodó, halmozható állapotjelölők és rövid `elköltött/keret ft` mozgásfelirat; tokenenkénti kezdeményezés és közös harckövető.
+- Képernyőpixelben korlátozott, halmozható állapotjelölők és rövid `elköltött/keret ft` mozgásfelirat; tokenenkénti kezdeményezés és közös harckövető.
 - Körönként visszatöltődő mozgáskeret, összegzett költség, piros túllépés és visszavonáskor költség-visszatérítés.
 - Festhető/radírozható nehéz terep, kétszeres mezőköltséggel; közös kör-, kúp- és vonalsablonok.
 
