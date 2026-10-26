@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f6f5f0">
   <meta name="description" content="Kétnyelvű, mobilbarát virtuális játékasztal. Saját térképek, tokenek és közös D&D-kalandok.">
-  <title>Kalandasztal · A te játékasztalod</title>
-  <link rel="icon" href="./assets/favicon.svg?v=0.4.2" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=0.4.2">
+  <title>CrowBattle · A te játékasztalod</title>
+  <link rel="icon" href="./assets/favicon.svg?v=0.5.0" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=0.5.0">
   <script defer src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./app.js?v=0.4.2"></script>
+  <script defer src="./vendor/qrcode.js?v=0.5.0"></script>
+  <script type="module" src="./app.js?v=0.5.0"></script>
 </head>
 <body>
   <svg class="icon-defs" aria-hidden="true"><defs>
     <symbol id="i-dice" viewBox="0 0 24 24"><path d="m12 2 9 5.5v9L12 22l-9-5.5v-9Z"/><path d="M12 2 6.5 9h11ZM3 7.5 6.5 9 3 16.5l9 1 9-1.5L17.5 9 21 7.5M6.5 9 12 17.5 17.5 9M12 17.5V22"/></symbol>
+    <symbol id="i-labels" viewBox="0 0 24 24"><path d="M3 5h18M12 5v15M8 20h8M4 9V5m16 4V5"/></symbol>
+    <symbol id="i-fullscreen" viewBox="0 0 24 24"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></symbol>
+    <symbol id="i-fullscreen-exit" viewBox="0 0 24 24"><path d="M9 3v6H3M21 9h-6V3M15 21v-6h6M3 15h6v6"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
     <symbol id="i-map" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16M15 5v16"/></symbol>
@@ -48,7 +52,7 @@
 
   <section id="home">
     <header class="site-header wrap">
-      <a class="brand" href="#" aria-label="Kalandasztal"><span class="brand-icon"><svg><use href="#i-dice"/></svg></span><span>Kalandasztal<span class="brand-dot">.</span></span></a>
+      <a class="brand" href="#" aria-label="CrowBattle"><span class="brand-icon"><svg><use href="#i-dice"/></svg></span><span>CrowBattle<span class="brand-dot">.</span></span></a>
       <div class="header-actions"><span class="local-label"><span class="status-dot"></span><span data-t="browserSaved">A böngésződben mentve</span></span><button class="lang-button" data-action="language">HU <span>/ EN</span></button><button class="icon-button" data-action="help" data-title="help"><svg><use href="#i-help"/></svg></button></div>
     </header>
     <main class="wrap home-main">
@@ -57,7 +61,7 @@
       <div class="role-row"><div class="role-switch" role="tablist" aria-label="Role"><button id="dm-tab" class="active" role="tab" aria-selected="true" data-action="role-dm"><svg><use href="#i-dice"/></svg><span data-t="dmRole">Én mesélek</span><span class="role-tag">DM</span></button><button id="player-tab" role="tab" aria-selected="false" data-action="role-player"><svg><use href="#i-users"/></svg><span data-t="playerRole">Játszani jöttem</span></button></div><span class="role-note" data-t="noAccount">Nincs regisztráció. Csak a kaland.</span></div>
       <section id="library" role="tabpanel" aria-labelledby="dm-tab"><div class="section-row"><div><h2 data-t="yourMaps">A térképeid</h2><p data-t="mapsCopy">Készítsd elő a következő helyszínt, vagy folytasd, ahol abbahagytátok.</p></div><button class="button secondary" data-action="import"><svg><use href="#i-upload"/></svg><span data-t="import">Mentés betöltése</span></button></div><div id="map-cards" class="map-cards"></div><div class="library-foot"><span><svg><use href="#i-check"/></svg><span data-t="localFoot">A térképeid ezen az eszközön maradnak. Készíts róluk letölthető mentést.</span></span><span class="small-label">MADE FOR YOUR PARTY</span></div></section>
       <section id="join-section" hidden role="tabpanel" aria-labelledby="player-tab"><div class="join-layout"><div class="join-copy"><span class="section-number">02 / PLAYER</span><h2 data-t="joinHeading">A csapat már vár.</h2><p data-t="joinCopy">Kérd el a szobakódot a mesélőtől, és foglalj helyet az asztalnál.</p><div class="connection-note"><svg><use href="#i-link"/></svg><span data-t="joinNote">A mesélő tartsa nyitva az oldalt játék közben.</span></div></div><form id="join-form" class="join-form"><label><span data-t="nickname">Becenév</span><input id="nickname" name="nickname" required maxlength="30" autocomplete="nickname" placeholder="pl. Liora" data-placeholder="nicknamePlaceholder"></label><label><span data-t="roomCode">Szobakód</span><input id="join-code" name="code" required minlength="12" maxlength="16" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></label><button class="button primary" type="submit"><span data-t="join">Csatlakozás</span><svg><use href="#i-arrow"/></svg></button><p id="join-status" class="form-status" aria-live="polite"></p></form></div></section>
-      <footer class="home-footer"><span>KALANDASZTAL <span class="version">/ 04.2</span></span><span data-t="footer">Kevesebb menü. Több játék.</span><button class="text-button" data-action="help" data-t="how">Hogyan működik?</button></footer>
+      <footer class="home-footer"><span>CROWBATTLE <span class="version">/ 05.0</span></span><span data-t="footer">Kevesebb menü. Több játék.</span><button class="text-button" data-action="help" data-t="how">Hogyan működik?</button></footer>
     </main>
   </section>
 
@@ -82,6 +86,7 @@
       <button class="tool" data-action="more" data-title="more"><svg><use href="#i-more"/></svg></button>
     </nav>
     <div id="table-hint" class="table-hint" data-t="tableHint">Húzás: mozgatás · Két ujj: nagyítás</div>
+    <div class="view-controls"><button id="labels-button" class="icon-button" data-action="toggle-labels" aria-pressed="true"><svg><use href="#i-labels"/></svg></button><button id="fullscreen-button" class="icon-button" data-action="fullscreen" aria-pressed="false"><svg><use href="#i-fullscreen"/></svg></button></div>
     <div class="zoom-controls"><button id="undo-button" class="icon-button" data-action="undo" data-title="undo"><svg><use href="#i-undo"/></svg></button><button class="icon-button" data-action="zoom-out" data-title="zoomOut"><svg><use href="#i-minus"/></svg></button><span id="zoom-value">100%</span><button class="icon-button" data-action="zoom-in" data-title="zoomIn"><svg><use href="#i-plus"/></svg></button><span></span><button class="icon-button" data-action="fit" data-title="fit"><svg><use href="#i-fit"/></svg></button></div>
     <div id="measure-readout" hidden><span id="measure-value"></span><button class="icon-button" data-action="clear-measure" data-title="close"><svg><use href="#i-x"/></svg></button></div><aside id="feature-panel" hidden aria-label="Table tools"></aside>
     <div id="paint-mode" hidden><span id="paint-mode-label"></span><button class="button primary small" data-action="paint-done" data-t="done">Kész</button></div><aside id="combat-panel" hidden aria-label="Encounter tracker"></aside><aside id="token-context" class="token-context" hidden><strong id="selected-name"></strong><button class="icon-button" data-action="token-combat" data-title="combatToken"><svg><use href="#i-combat"/></svg></button><button class="icon-button" data-action="edit-token" data-title="editToken"><svg><use href="#i-token"/></svg></button><button class="icon-button dm-only" data-action="toggle-hidden" data-title="hide"><svg><use href="#i-hide"/></svg></button><button class="icon-button" data-action="save-template" data-title="saveTemplate"><svg><use href="#i-folder"/></svg></button><button class="icon-button" data-action="duplicate-token" data-title="duplicateToken"><svg><use href="#i-copy"/></svg></button><button class="icon-button danger" data-action="delete-token" data-title="delete"><svg><use href="#i-trash"/></svg></button><button class="icon-button" data-action="deselect" data-title="close"><svg><use href="#i-x"/></svg></button></aside>

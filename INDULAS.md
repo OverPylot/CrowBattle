@@ -1,18 +1,18 @@
-# Így indítsd el ingyen a Kalandasztalt 0.3
+# Így indítsd el ingyen a CrowBattle-t 0.5.0
 
-Ha a korábbi változatot már használod, a [FRISSITES-v0.3.md](FRISSITES-v0.3.md) útmutatót kövesd.
+Ha a korábbi változatot már használod, a [FRISSITES-v0.5.0.md](FRISSITES-v0.3.md) útmutatót kövesd.
 
 A weboldalt a GitHub Pages szolgálja ki. A játékosok és a mesélő összekapcsolását a PeerJS ingyenes szolgáltatása segíti. Nem kell bankkártya, PeerJS-fiók, API-kulcs, domainvásárlás, saját szerver vagy fizetős tárhely.
 
 ## 1. Csomagold ki a letöltött fájlt
 
-Csomagold ki a `kalandasztal.zip` fájlt. Az alkalmazás fájljait fogod látni: `index.html`, `style.css`, `app.js`, további JavaScript-fájlok, `assets` és `vendor` mappák, illetve útmutatók.
+Csomagold ki a `crowbattle-v0.5.0.zip` fájlt. Az alkalmazás fájljait fogod látni: `index.html`, `style.css`, `app.js`, további JavaScript-fájlok, `assets` és `vendor` mappák, illetve útmutatók.
 
 ## 2. Hozz létre egy GitHub-kódtárat
 
 1. Jelentkezz be a [github.com](https://github.com) oldalon. Ha nincs fiókod, hozz létre egy ingyeneset.
 2. Jobb felül a **+ → New repository** menüt válaszd.
-3. A **Repository name** mezőbe például ezt írd: `kalandasztal`.
+3. A **Repository name** mezőbe például ezt írd: `CrowBattle`.
 4. Láthatóság: **Public**. A GitHub Pages az ingyenes csomagban nyilvános repóval használható.
 5. Bekapcsolhatod az **Add README** lehetőséget.
 6. Kattints a **Create repository** gombra.
@@ -26,7 +26,7 @@ A nyilvános kódtár az alkalmazás kódját teszi láthatóvá. A böngészőb
 3. Ellenőrizd, hogy az `index.html` közvetlenül a repó gyökerébe kerül, és az `assets/`, illetve `vendor/` mappák is feltöltődnek.
 4. Kattints a **Commit changes** gombra, és mentsd a változtatást a `main` ágra.
 
-**Ne magát a ZIP-et töltsd fel.** Ha az `index.html` egy külön `kalandasztal/` almappába kerül, a gyökérből publikált oldal nem fog megfelelően elindulni. A `.nojekyll` fájl rejtett lehet; a többi fájlt mindenképp töltsd fel.
+**Ne magát a ZIP-et töltsd fel.** Ha az `index.html` egy külön `CrowBattle/` almappába kerül, a gyökérből publikált oldal nem fog megfelelően elindulni. A `.nojekyll` fájl rejtett lehet; a többi fájlt mindenképp töltsd fel.
 
 ## 4. Kapcsold be a GitHub Pages-t
 
@@ -36,7 +36,7 @@ A nyilvános kódtár az alkalmazás kódját teszi láthatóvá. A böngészőb
 4. A **Branch** mezőben válaszd: **main**.
 5. A mappa legyen **/ (root)**.
 6. Kattints a **Save** gombra.
-7. Amikor elkészült a közzététel, itt jelenik meg az oldal címe. Jellemzően: `https://FELHASZNALONEVED.github.io/kalandasztal/`.
+7. Amikor elkészült a közzététel, itt jelenik meg az oldal címe. Jellemzően: `https://FELHASZNALONEVED.github.io/CrowBattle/`.
 
 Ha még nem tölt be, nézd meg a repó **Actions** lapján, hogy a Pages-közzététel befejeződött-e. Az első publikálás eltarthat néhány percig.
 
@@ -57,7 +57,7 @@ Hivatalos segítség: [GitHub Pages beállítása](https://docs.github.com/en/pa
 
 1. DM-ként kattints a **Szoba indítása** gombra.
 2. A létrejövő szobakódot másold ki, vagy válaszd a **Játékoslink** gombot.
-3. A játékosok megnyitják az oldaladat vagy a játékoslinket, megadják a becenevüket és a kódot, majd a **Csatlakozás** gombra kattintanak.
+3. A játékosok a szobaablak QR-kódját is beolvashatják, vagy megnyitják az oldaladat vagy a játékoslinket, megadják a becenevüket és a kódot, majd a **Csatlakozás** gombra kattintanak.
 4. A játékos feltölthet saját tokent. Ha te készítetted elő a figuráját, a token szerkesztésénél a **Ki kezelheti?** mezőben rendeld a már csatlakozott játékoshoz.
 5. Tartsd nyitva és aktívan a DM-oldalt a játék végéig. A telefon lezárása vagy az oldal háttérbe helyezése megszakíthatja a kapcsolatot.
 
@@ -66,7 +66,7 @@ A szoba tartalmát a kóddal rendelkezők érhetik el. A DM-kezdőképernyőre k
 ## 7. Ments, és folytasd később
 
 - A térkép automatikusan mentődik a **DM böngészőjében**.
-- A letöltés ikon vagy a szobaablak vagy a hárompontos menü **Mentés letöltése** gombja egy `.kalandasztal.json` fájlt készít.
+- A letöltés ikon vagy a szobaablak vagy a hárompontos menü **Mentés letöltése** gombja egy `.crowbattle.json` fájlt készít.
 - Másik eszközre költözéskor a kezdőképernyő **Mentés betöltése** gombjával töltsd vissza.
 - Ez a mentés a rejtett ellenfeleket is tartalmazza; mesélői mentésként kezeld.
 - A **DM gyorslink** ugyanebben a böngészőben segít megnyitni a térképet. Másik eszközre nem viszi át a térképtárat.

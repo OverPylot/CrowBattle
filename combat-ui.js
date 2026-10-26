@@ -1,6 +1,6 @@
-import {tokenLabelMetrics,safeZoom} from './view.js?v=0.4.2';
-import {STATUS_CATALOG,statusIcon} from './conditions.js?v=0.4.2';
-import {initiativeOrder,normalizeArea} from './combat.js?v=0.4.2';
+import {tokenLabelMetrics,safeZoom} from './view.js?v=0.5.0';
+import {STATUS_CATALOG,statusIcon} from './conditions.js?v=0.5.0';
+import {initiativeOrder,normalizeArea} from './combat.js?v=0.5.0';
 export function createCombatUI(ctx){
   const {$,esc,icon,modal,closeModal,field,submitButton,cancelButton,state}=ctx;
   const L=(hu,en)=>ctx.language()==='hu'?hu:en;

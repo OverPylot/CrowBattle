@@ -1,9 +1,9 @@
-import {safeZoom,measurementLabelMetrics} from './view.js?v=0.4.2';
-import {diceIcon} from './dice-icons.js?v=0.4.2';
-import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.4.2';
-import {BUILTIN_TOKENS} from './tokens.js?v=0.4.2';
-import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.4.2';
-import {listTemplates,saveTemplate} from './storage.js?v=0.4.2';
+import {safeZoom,measurementLabelMetrics} from './view.js?v=0.5.0';
+import {diceIcon} from './dice-icons.js?v=0.5.0';
+import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.5.0';
+import {BUILTIN_TOKENS} from './tokens.js?v=0.5.0';
+import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.5.0';
+import {listTemplates,saveTemplate} from './storage.js?v=0.5.0';
 
 export function createFeatures(ctx){
   const {$,t,esc,icon,toast,modal,closeModal,field,submitButton,cancelButton}=ctx;
@@ -225,13 +225,13 @@ export function createFeatures(ctx){
     if(sceneChanged)changedScene();else if(panel==='dice')renderRollHistory();else if(panel==='loot'&&state().role==='player')renderLoot();
   }
   async function importTemplates(parsed){
-    if(parsed.format!=='kalandasztal-token-library')return false;
+    if(!['kalandasztal-token-library','crowbattle-token-library'].includes(parsed.format))return false;
     if(parsed.version!==1||!Array.isArray(parsed.templates)||parsed.templates.length>500)throw new Error('invalid-template');
     for(const raw of parsed.templates){const template=normalizeTemplate({...raw,id:uid()});await saveTemplate(template);templates.push(template);}
     if(panel==='library')renderLibrary();toast(t('libraryImported'));return true;
   }
   function exportTemplates(){
-    const blob=new Blob([JSON.stringify({format:'kalandasztal-token-library',version:1,templates},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='kalandasztal-tokentar.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+    const blob=new Blob([JSON.stringify({format:'crowbattle-token-library',version:1,templates},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='crowbattle-tokentar.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
   }
   async function action(action,el){
     switch(action){

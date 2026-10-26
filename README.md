@@ -1,19 +1,28 @@
-# Kalandasztal 0.4.2
+# CrowBattle 0.5.0
 
 Magyar–angol, mobilbarát virtuális játékasztal D&D-hez. Saját szerver, buildelés és csomagtelepítés nélkül feltölthető GitHub Pages-re. A DM böngészője tartja össze a játékot, az egymásra találást az ingyenes PeerJS Cloud segíti.
 
 - Első indítás: [INDULAS.md](INDULAS.md).
-- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.4.2.md](FRISSITES-v0.4.2.md).
+- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.5.0.md](FRISSITES-v0.5.0.md).
 - Ellenőrzés és annak határai: [ELLENORZES.md](ELLENORZES.md).
 
 ## Ingyenes közzététel
 
-1. Hozz létre egy **Public** GitHub-repót, például `kalandasztal` néven.
+1. Hozz létre egy **Public** GitHub-repót, például `CrowBattle` néven.
 2. A kicsomagolt alkalmazás **tartalmát** töltsd fel a repó gyökerébe. Az `index.html` közvetlenül a gyökérben legyen; az `assets/` és `vendor/` mappák is kerüljenek fel.
 3. **Settings → Pages → Source: Deploy from a branch → main → / (root) → Save.**
 4. Nyisd meg a GitHub által megadott HTTPS-címet. PeerJS-fiók vagy API-kulcs nem kell.
 
 A GitHubra csak az alkalmazás kódját és a mellékelt grafikákat töltöd fel. A saját térképeid és mentéseid a böngészőben maradnak.
+
+## Új kényelmi funkciók
+
+- Tokenhúzás közbeni peremgörgetés: a szélhez közeledve gyorsul, felengedéskor vagy megszakításkor megáll.
+- A térképi nevek és mozgás-/mérésfeliratok külön kapcsolhatók minden résztvevőnél. A helyi beállítás megmarad. A jelölőikonok és a „ki mozgatja?” jelzés láthatók maradnak.
+- Teljesképernyő-gomb a támogatott böngészőkben; a menük és párbeszédablakok is használhatók teljes képernyőn.
+- Legalább 44×44 képernyőpixeles érintési cél a kis tokenekhez. Közeli figuráknál előbb a ténylegesen eltalált, egyébként a legközelebbi token választható; a portré nem lesz nagyobb.
+- Rövid névjelzés a húzott tokenen. Ez tájékoztatás, nem kizárólagos zárolás; rejtett token jelenlétjelzése nem kerül a játékosokhoz.
+- Helyben készülő QR-kód a szobaablakban, játékoslinkkel és beceneves csatlakozással. QR-szolgáltatóhoz nem küldünk adatot.
 
 ## Funkciók
 
@@ -79,3 +88,5 @@ A PeerJS Cloud ingyenes signaling szolgáltatása külső függőség. Egyes há
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
 
 A helyben mellékelt PeerJS 1.5.5 MIT-licence: `vendor/PEERJS-LICENSE.txt`. A portrék, a mintatérképek és a felület saját SVG/CSS-elemek; hivatalos D&D- és Owlbear-grafika nincs a csomagban.
+
+A QR-készítő a [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) helyben mellékelt JavaScript-változata; MIT-licenc: `vendor/QRCODE-LICENSE.txt`.

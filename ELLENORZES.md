@@ -1,3 +1,24 @@
+# CrowBattle 0.5.0 ellenőrzése
+
+2026. október 26. **40 automatizált teszt sikeres.** Minden alkalmazásmodul szintaktikai ellenőrzése sikeres.
+
+Az új próbák lefedik a kis tokenek 44 pixeles érintési célját és a közeli tokenek kiválasztását, a görgetés után helyes fogási/végpontot 4–600%-os nagyításnál, a mozgató hitelesített nevének továbbítását, az elévülést és lecsatlakozást, a rejtett tokenek jelzésének kiszűrését, valamint a DM-kulcs nélküli, GitHub Pages-alkönyvtárat megőrző játékoslinket.
+
+Böngészős és külön ellenőrzések:
+
+- A kezdőképernyő, a böngészőcím és mindkét nyelv CrowBattle néven jelenik meg; a korábbi helyi térképtár továbbra is betöltődik.
+- Valódi PeerJS-kapcsolatban két böngészőlap csatlakozott, és a mozgatás végpozíciója megjelent a játékosnál is. A rejtett Őrző nem került a játékos térképére.
+- A jobb szélre húzott token alatt a kamera eltolása 235,714-ről 215,525 képpontra változott. A mozgás végpontja a térképhatáron belül maradt.
+- A feliratkapcsoló eltüntette és visszahozta a neveket és mozgásszámokat. Másik résztvevő megnyitott nézetének feliratai ettől nem változtak meg.
+- A teljesképernyő-gomb oda-vissza működött. A végleges, teljes dokumentumot nagyító változatban a hárompontos menü és a rácsbeállító párbeszédablak is megjelent és bezárható volt.
+- A szobaablakban megjelent a QR-kód, a belőle származó játékoslink a kóddal kitöltött, becenevet kérő belépőre vezetett. A kódoló által készített három, különböző hosszúságú címet egy független jsQR-dekóder pontosan visszaolvasta (29×29, 33×33, 73×73 modul).
+- 390×844 álló nézetben javítottam a nagyítósáv és az új nézetgombok átfedését; a gombok külön sorban láthatók, a feliratkapcsoló működik. 844×390 fekvő nézetben az eszközsáv és a nézetgombok a képernyőn belül vannak; a dokumentum szélessége 844 pixel.
+- A friss változat böngészőnaplójában nem volt alkalmazáshiba.
+
+A tesztböngésző vezérlése egy szobazárási natív megerősítésnél elakadt; a fennmaradó felületpróbák új tesztlapon folytatódtak. A mozgatójelzés eseménykezelése automatizált teszttel ellenőrzött, a másik résztvevőnél húzás közben megjelenő jelzésről nem készült külön böngészős pillanatfelvétel. Fizikai érintőképernyős Android-próba, fizikai kamerás QR-beolvasás és külön Firefox-próba nem történt.
+
+A GitHubon futó oldal nem lett automatikusan frissítve; a csomag manuális feltöltésre készült. A korábbi zoomjavítás korlátai alább továbbra is érvényesek.
+
 # A 0.4.2-es javítás ellenőrzése
 
 2026. október 25. **35 teszt sikeres.** A 14 JavaScript-modul szintaktikai ellenőrzése és az SVG-assetek XML-ellenőrzése sikeres.

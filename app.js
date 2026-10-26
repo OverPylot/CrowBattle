@@ -1,11 +1,13 @@
-import {safeZoom,viewportBox,createFrameScheduler} from './view.js?v=0.4.2';
-import {applyCombatCommand,syncEncounter} from './combat.js?v=0.4.2';
-import {createCombatUI} from './combat-ui.js?v=0.4.2';
-import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.4.2';
-import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.4.2';
-import {messages} from './i18n.js?v=0.4.2';
-import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.4.2';
-import {createFeatures} from './features.js?v=0.4.2';
+import {safeZoom,viewportBox,createFrameScheduler} from './view.js?v=0.5.0';
+import {applyCombatCommand,syncEncounter} from './combat.js?v=0.5.0';
+import {createCombatUI} from './combat-ui.js?v=0.5.0';
+import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.5.0';
+import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.5.0';
+import {messages} from './i18n.js?v=0.5.0';
+import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.5.0';
+import {createFeatures} from './features.js?v=0.5.0';
+
+import {touchTokenAt,edgeVelocity,dragPosition,playerLink,qrMarkup,MovePresence} from './comfort.js?v=0.5.0';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -17,17 +19,18 @@ let toastTimer,saveTimer,lastSave=Promise.resolve(),modalSubmit=null,modalCleanu
 let camera={x:0,y:0,scale:1};
 const cameraPaint=createFrameScheduler(drawCamera);
 let lastView={width:0,height:0},isFitted=true;
-const pointers=new Map();let drag=null,pinch=null;
+const pointers=new Map();let drag=null,pinch=null,edgeFrame=null,lastEdgeTime=0;
+let labelsVisible=readPref('labels','yes')!=='no';
 
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function translate(){
   document.documentElement.lang=lang;
-  document.title=lang==='hu'?'Kalandasztal · A te játékasztalod':'Kalandasztal · Your adventure table';
+  document.title=lang==='hu'?'CrowBattle · A te játékasztalod':'CrowBattle · Your adventure table';
   document.querySelectorAll('[data-t]').forEach(el=>{const value=t(el.dataset.t);if(el.dataset.t==='hero'){el.replaceChildren(...value.split('\n').flatMap((s,i)=>i?[document.createElement('br'),document.createTextNode(s)]:[document.createTextNode(s)]));}else el.textContent=value;});
   document.querySelectorAll('[data-title]').forEach(el=>{el.title=t(el.dataset.title);el.setAttribute('aria-label',t(el.dataset.title));});
   document.querySelectorAll('[data-placeholder]').forEach(el=>el.placeholder=t(el.dataset.placeholder));
   document.querySelectorAll('.lang-button').forEach(el=>{el.innerHTML=lang==='hu'?'HU <span>/ EN</span>':'EN <span>/ HU</span>';el.setAttribute('aria-label',lang==='hu'?'Switch to English':'Váltás magyar nyelvre');});
-  renderLibrary();updateStatus();
+  renderLibrary();updateStatus();updateComfortButtons();
   if(state.scene){$('scene-title').textContent=sceneName(state.scene);renderTokens();}features.render();features.paintCamera();combatUI.render();combatUI.paintCamera();
 }
 function sceneName(scene){if(scene.name==='Az elfeledett kripta'&&scene.id==='demo-vault')return t('demoVault');if(scene.name==='A régi erdei ösvény'&&scene.id==='demo-woodland')return t('demoWoodland');return scene.name;}
@@ -78,11 +81,12 @@ function renderScene(){
   $('scene-title').textContent=sceneName(scene);
   for(const id of ['world','token-world']){$(id).style.width=scene.map.width+'px';$(id).style.height=scene.map.height+'px';}
   $('grid-fill').setAttribute('width',scene.map.width);$('grid-fill').setAttribute('height',scene.map.height);
-  const displaySource=scene.map.src.startsWith('./assets/')?scene.map.src+'?v=0.4.2':scene.map.src;
+  const displaySource=scene.map.src.startsWith('./assets/')?scene.map.src+'?v=0.5.0':scene.map.src;
   if($('map-image').getAttribute('src')!==displaySource)$('map-image').src=displaySource;
   $('map-image').alt=sceneName(scene);renderGrid();renderTokens();updateStatus();
 }
 function showTable(){
+  updateComfortButtons();
   $('home').hidden=true;$('table').hidden=false;document.body.classList.add('table-open');
   renderScene();requestAnimationFrame(fit);
 }
@@ -96,6 +100,7 @@ async function openScene(id){
 async function goHome(){
   if(state.roomActive&&!confirm(t('leaveConfirm')))return;
   if(state.role==='player'&&room.status==='online'&&!confirm(t('leaveConfirm')))return;
+  cancelTokenDrag();presence.clear();if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});
   await persist();room.stop(true);state.roomActive=false;state.scene=null;state.role=null;state.selected=null;state.align=false;state.participants=[];
   features.hidePanel();combatUI.hide();features.clearMeasurement({all:true,notify:false});
   clearTimeout(saveTimer);$('table').hidden=true;$('home').hidden=false;document.body.classList.remove('table-open');$('join-status').textContent='';joining=false;$('join-form').querySelector('button[type=submit]').disabled=false;
@@ -122,7 +127,7 @@ function renderTokens(){
     el.setAttribute('aria-label',token.name+(token.hidden?' · '+t('hidden'):''));
     el.replaceChildren();if(token.image){const image=document.createElement('img');image.src=token.image;image.alt='';image.draggable=false;el.append(image);}else{const initials=document.createElement('span');initials.className='token-initials';initials.textContent=token.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2);el.append(initials);}
     const label=document.createElement('span');label.className='token-label';label.textContent=token.name;el.append(label);
-    combatUI.decorateToken(token,el);
+    combatUI.decorateToken(token,el);decorateMover(token,el);
     if(token.hidden){const indicator=document.createElement('span');indicator.className='hidden-indicator';indicator.innerHTML=icon('hide');el.append(indicator);}
   }
   for(const el of [...layer.children])if(!present.has(el.dataset.id))el.remove();
@@ -137,7 +142,7 @@ function drawCamera(){
   const view=$('viewport'),box=viewportBox(camera,view.clientWidth,view.clientHeight);
   for(const id of ['map-grid','terrain-layer','area-layer','measure-layer'])$(id).setAttribute('viewBox',box.join(' '));
   const label=Math.round(camera.scale*100)+'%';if($('zoom-value').textContent!==label)$('zoom-value').textContent=label;
-  features.paintCamera();combatUI.paintCamera();
+  features.paintCamera();combatUI.paintCamera();paintMoverScale();
   const origin=$('grid-origin'),inverse=1/camera.scale;origin.style.width=origin.style.height=32*inverse+'px';origin.style.fontSize=24*inverse+'px';origin.style.borderWidth=2*inverse+'px';
 }
 
@@ -150,6 +155,7 @@ function commitCommand(command){
   if(state.role==='player'){
     if(!room.command({...command,sceneId:state.scene.id})){toast(t('needConnection'));return false;}return true;
   }
+  const presenceResult=presence.apply('dm',{...command,sceneId:state.scene.id});if(presenceResult!==null)return presenceResult;
   const combatResult=applyCombatCommand(state.scene,'dm',command);if(combatResult!==null){if(combatResult){renderScene();changed();}return combatResult;}
   const featureResult=features.applyCommand('dm',command);if(featureResult!==null)return featureResult;
   if(command.type==='undo'){if(!undoMove(state.scene,true))return false;renderTokens();changed();return true;}
@@ -200,13 +206,13 @@ async function uploadMap(file){
   }catch(error){toast(t(error.message)||t('mapTooLarge'));}
 }
 function downloadScene(scene){
-  const safe=normalizeScene(scene);const data=JSON.stringify({format:'kalandasztal',version:1,scene:safe},null,2);
-  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=scene.name.replace(/[^\p{L}\p{N}_-]+/gu,'-').slice(0,60)+'.kalandasztal.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast(t('downloaded'));
+  const safe=normalizeScene(scene);const data=JSON.stringify({format:'crowbattle',version:1,scene:safe},null,2);
+  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=scene.name.replace(/[^\p{L}\p{N}_-]+/gu,'-').slice(0,60)+'.crowbattle.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast(t('downloaded'));
 }
 async function importBackup(file){
   try{
     if(!file||file.size>50*1024*1024)throw new Error();
-    const parsed=JSON.parse(await file.text());if(await features.importTemplates(parsed))return;if(parsed.format!=='kalandasztal'||parsed.version!==1)throw new Error();
+    const parsed=JSON.parse(await file.text());if(await features.importTemplates(parsed))return;if(!['kalandasztal','crowbattle'].includes(parsed.format)||parsed.version!==1)throw new Error();
     const scene=normalizeScene(parsed.scene);scene.id=uid();scene.updatedAt=Date.now();scene.tokens.forEach(token=>token.owner='dm');
     await saveScene(scene);state.scenes.push(scene);renderLibrary();toast(t('backupImported'));
   }catch{toast(t('invalidBackup'));}
@@ -244,13 +250,16 @@ function gridModal(){
   });
 }
 
+const presence=new MovePresence({scene:()=>state.scene,role:()=>state.role,participants:()=>state.participants,publish:event=>{if(state.roomActive)room.broadcastEvent(event);},render:renderMovers});
+setInterval(()=>presence.prune(),1000);
 const room=new Room({
   view:participants=>state.scene?playerView(state.scene,participants,state.sharedRolls):null,
-  command:(actor,command)=>{if(state.role!=='dm'||!state.roomActive||!command||command.sceneId!==state.scene.id)return false;const combatResult=applyCombatCommand(state.scene,actor,command);if(combatResult!==null){if(combatResult){renderScene();changed();}return combatResult;}const featureResult=features.applyCommand(actor,command);if(featureResult!==null)return featureResult;const beforeMove=command.type==='move'?state.scene.tokens.find(t=>t.id===command.id):null,before=beforeMove?structuredClone(beforeMove):null;const accepted=applyPlayerCommand(state.scene,actor,command);if(accepted){if(before)features.moveCommitted(actor,before,state.scene.tokens.find(t=>t.id===command.id));renderTokens();changed();}return accepted;},
-  event:event=>features.receiveEvent(event),
+  command:(actor,command)=>{if(state.role!=='dm'||!state.roomActive||!command||command.sceneId!==state.scene.id)return false;const presenceResult=presence.apply(actor,command);if(presenceResult!==null)return presenceResult;const combatResult=applyCombatCommand(state.scene,actor,command);if(combatResult!==null){if(combatResult){renderScene();changed();}return combatResult;}const featureResult=features.applyCommand(actor,command);if(featureResult!==null)return featureResult;const beforeMove=command.type==='move'?state.scene.tokens.find(t=>t.id===command.id):null,before=beforeMove?structuredClone(beforeMove):null;const accepted=applyPlayerCommand(state.scene,actor,command);if(accepted){if(before)features.moveCommitted(actor,before,state.scene.tokens.find(t=>t.id===command.id));renderTokens();changed();}return accepted;},
+  event:event=>{presence.receive(event);features.receiveEvent(event);},
   members:members=>{if(state.role==='dm'&&state.scene?.room){state.scene.room.members=members;changed();}},
-  participants:participants=>{state.participants=participants;if($('modal').open&&$('participants'))renderParticipants();},
+  participants:participants=>{state.participants=participants;presence.prune();if($('modal').open&&$('participants'))renderParticipants();},
   status:(status,detail)=>{
+    if(status!=='online'){cancelTokenDrag();presence.clear();}
     updateStatus();
     if(state.role==='player'||joining){
       $('join-status').textContent=status==='online'?'':t(detail||(status==='connecting'?'connecting':'waiting'));
@@ -263,7 +272,7 @@ const room=new Room({
       if(raw.map?.src===null){if(!state.scene||state.scene.id!==raw.id){room.conn?.send({type:'request-state'});return;}raw.map.src=state.scene.map.src;}
       const scene=normalizeScene(raw),first=whereHome(),sceneChanged=state.scene?.id!==scene.id;state.scene=scene;state.role='player';state.myId=myId;state.participants=Array.isArray(raw.participants)?raw.participants:[];state.canUndo=raw.canUndo===true;state.sharedLoot=raw.loot?.visible?scene.loot:null;state.sharedRolls=(Array.isArray(raw.rolls)?raw.rolls:[]).map(normalizeRoll).filter(r=>r&&!r.secret);
       joining=false;$('join-form').querySelector('button[type=submit]').disabled=false;
-      if(sceneChanged){state.selected=null;drag=null;pinch=null;pointers.clear();}if(first){state.align=false;state.tool='select';showTable();setTool('select');}else{renderScene();if(sceneChanged)fit();}features.onState(sceneChanged);
+      if(sceneChanged){cancelTokenDrag();presence.clear();state.selected=null;drag=null;pinch=null;pointers.clear();}if(first){state.align=false;state.tool='select';showTable();setTool('select');}else{renderScene();if(sceneChanged)fit();}features.onState(sceneChanged);presence.prune();paintDraggedToken();
     }catch{toast(t('networkError'));}
   },
 });
@@ -276,7 +285,7 @@ async function switchScene(id,bringParty){
     await persist();const source=state.scene,next=structuredClone(target);
     next.dmKey ||= uid()+uid();if(state.roomActive)next.room=source.room;
     if(bringParty)carryParty(source,next);
-    state.scene=next;state.selected=null;state.align=false;drag=null;pinch=null;pointers.clear();
+    cancelTokenDrag();presence.clear();state.scene=next;state.selected=null;state.align=false;drag=null;pinch=null;pointers.clear();
     renderScene();features.changedScene();fit();changed();await persist();
     history.replaceState(null,'',`${location.pathname}${location.search}#dm=${encodeURIComponent(id)}&key=${encodeURIComponent(next.dmKey)}`);toast(t('sceneSwitched'));
   }finally{state.switching=false;}
@@ -303,7 +312,7 @@ async function startRoom(newCode=false){
 }
 let wakeLock=null;
 function roomModal(){
-  modal(t('roomTitle'),`<p class="modal-copy">${t('roomCopy')}</p><div class="room-code">${esc(displayCode(room.code))}</div><div class="room-actions"><button type="button" class="button secondary" data-action="copy-code">${icon('copy')}${t('copyCode')}</button><button type="button" class="button secondary" data-action="copy-player">${icon('link')}${t('copyLink')}</button></div><div><label>${t('players')}</label><div id="participants" class="participant-list"></div></div><div class="info-box">${t('networkNote')}</div><div class="room-actions"><button type="button" class="text-button" data-action="copy-dm">${t('copyDM')}</button><button type="button" class="text-button" data-action="export">${t('exportInRoom')}</button></div><p class="field-caption">${t('dmLinkCopy')}</p>`,`<button type="button" class="button secondary danger" data-action="stop-room">${t('stopRoom')}</button><button type="button" class="button primary" data-action="close-modal">${t('done')}</button>`);renderParticipants();
+  modal(t('roomTitle'),`<p class="modal-copy">${t('roomCopy')}</p><div class="room-code">${esc(displayCode(room.code))}</div><div class="room-actions"><button type="button" class="button secondary" data-action="copy-code">${icon('copy')}${t('copyCode')}</button><button type="button" class="button secondary" data-action="copy-player">${icon('link')}${t('copyLink')}</button></div><div class="room-qr"><div id="room-qr"></div><p>${t('scanToJoin')}</p></div><div><label>${t('players')}</label><div id="participants" class="participant-list"></div></div><div class="info-box">${t('networkNote')}</div><div class="room-actions"><button type="button" class="text-button" data-action="copy-dm">${t('copyDM')}</button><button type="button" class="text-button" data-action="export">${t('exportInRoom')}</button></div><p class="field-caption">${t('dmLinkCopy')}</p>`,`<button type="button" class="button secondary danger" data-action="stop-room">${t('stopRoom')}</button><button type="button" class="button primary" data-action="close-modal">${t('done')}</button>`);renderParticipants();const qr=$('room-qr');qr.innerHTML=qrMarkup(playerLink(location,room.code));qr.querySelector('svg').setAttribute('role','img');qr.querySelector('svg').setAttribute('aria-label',t('scanToJoin'));
 }
 function renderParticipants(){
   const container=$('participants');if(!container)return;container.replaceChildren();
@@ -350,12 +359,14 @@ document.addEventListener('click',async event=>{
       case'remove-token-image':uploadedToken='';$('token-image').value='';paintTokenPreview();break;
       case'grid':gridModal();break;
       case'align-grid':closeModal();state.align=true;state.scene.grid.enabled=true;renderGrid();changed();updateStatus();toast(t('alignHint'));break;
+      case'toggle-labels':labelsVisible=!labelsVisible;writePref('labels',labelsVisible?'yes':'no');updateComfortButtons();break;
+      case'fullscreen':if(document.fullscreenElement)await document.exitFullscreen();else if(document.fullscreenEnabled)await document.documentElement.requestFullscreen().catch(()=>toast(t('fullscreenFailed')));break;
       case'zoom-in':zoom(1.25);break;case'zoom-out':zoom(.8);break;case'fit':fit();break;
       case'room':await startRoom();break;case'new-room-code':closeModal();await startRoom(true);break;
       case'copy-code':await copy(displayCode(room.code));break;
-      case'copy-player':await copy(location.origin+location.pathname+'#join='+room.code);break;
+      case'copy-player':await copy(playerLink(location,room.code));break;
       case'copy-dm':await copy(location.origin+location.pathname+'#dm='+encodeURIComponent(state.scene.id)+'&key='+encodeURIComponent(state.scene.dmKey));break;
-      case'stop-room':if(confirm(t('stopConfirm'))){room.stop(true);state.roomActive=false;state.participants=[];wakeLock?.release().catch(()=>{});updateStatus();closeModal();}break;
+      case'stop-room':if(confirm(t('stopConfirm'))){cancelTokenDrag();presence.clear();room.stop(true);state.roomActive=false;state.participants=[];wakeLock?.release().catch(()=>{});updateStatus();closeModal();}break;
       case'reconnect':if(room.status!=='online')room.retry();break;
     }
   }catch(error){console.error(error);toast(t('saveFailed'));}
@@ -368,6 +379,43 @@ $('join-form').addEventListener('submit',event=>{event.preventDefault();const na
 $('join-code').addEventListener('input',event=>{const cursor=event.target.selectionStart;const end=cursor===event.target.value.length;event.target.value=displayCode(event.target.value);if(end)event.target.setSelectionRange(event.target.value.length,event.target.value.length);});
 $('tokens').addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const token=state.scene.tokens.find(t=>t.id===event.target.dataset.id);if(token&&canMove(token)){event.preventDefault();state.selected=token.id;renderTokens();combatUI.action('token-combat',{dataset:{id:token.id}});}});
 
+function updateComfortButtons(){
+  $('table').classList.toggle('labels-hidden',!labelsVisible);
+  const labels=$('labels-button');labels.setAttribute('aria-pressed',String(labelsVisible));labels.title=labelsVisible?t('hideLabels'):t('showLabels');labels.setAttribute('aria-label',labels.title);
+  const full=$('fullscreen-button'),active=!!document.fullscreenElement;
+  full.disabled=!document.fullscreenEnabled&&!active;full.setAttribute('aria-pressed',String(active));full.title=full.disabled?t('fullscreenUnavailable'):t(active?'exitFullscreen':'fullscreen');full.setAttribute('aria-label',full.title);full.innerHTML=icon(active?'fullscreen-exit':'fullscreen');
+}
+function decorateMover(token,el){
+  const names=presence.names(token.id);if(!names.length)return;
+  const badge=document.createElement('span');badge.className='token-mover';badge.textContent=names.join(', ')+' ↔';badge.title=t('movingBy')+': '+names.join(', ');el.append(badge);
+  el.classList.add('is-moving');badge.style.setProperty('--mover-scale',1/camera.scale);
+}
+function paintMoverScale(){for(const el of document.querySelectorAll('.token-mover'))el.style.setProperty('--mover-scale',1/camera.scale);}
+function renderMovers(){
+  for(const el of $('tokens').children){el.querySelector('.token-mover')?.remove();el.classList.remove('is-moving');const token=state.scene?.tokens.find(t=>t.id===el.dataset.id);if(token)decorateMover(token,el);}
+}
+function sendMoving(id,active){commitCommand({type:'moving',id,active});}
+function paintDraggedToken(){
+  if(drag?.kind!=='token'||!drag.moved)return;
+  const token=state.scene?.tokens.find(t=>t.id===drag.id),element=[...$('tokens').children].find(t=>t.dataset.id===drag.id);if(!token||!element)return;
+  const position=dragPosition(drag,drag.point,camera);element.style.left=position.x+'px';element.style.top=position.y+'px';
+  const snapped=snapPosition(token,position.x,position.y,state.scene);features.movement({...token,x:drag.x,y:drag.y},snapped.x,snapped.y);
+  if(Date.now()-drag.presenceSent>=1000){drag.presenceSent=Date.now();sendMoving(drag.id,true);}
+}
+function stopEdgeScroll(){if(edgeFrame!==null)cancelAnimationFrame(edgeFrame);edgeFrame=null;lastEdgeTime=0;}
+function startEdgeScroll(){if(edgeFrame===null)edgeFrame=requestAnimationFrame(scrollEdge);}
+function scrollEdge(time){
+  edgeFrame=null;if(drag?.kind!=='token'||!drag.moved)return;
+  const dt=lastEdgeTime?Math.min(32,time-lastEdgeTime)/1000:0;lastEdgeTime=time;
+  const velocity=edgeVelocity(drag.point,viewport.clientWidth,viewport.clientHeight);
+  if(velocity.x||velocity.y){camera.x+=velocity.x*dt;camera.y+=velocity.y*dt;isFitted=false;cameraPaint.flush();paintDraggedToken();}
+  else if(Date.now()-drag.presenceSent>=1000)paintDraggedToken();
+  startEdgeScroll();
+}
+function cancelTokenDrag(resetPointers=true){
+  stopEdgeScroll();if(drag?.kind==='token'){if(drag.presenceSent)sendMoving(drag.id,false);drag=null;features.endMovement(true);renderTokens();}
+  if(resetPointers){drag=null;pinch=null;pointers.clear();}
+}
 // Pointer events support touch, mouse and pen without a separate mobile mode.
 const viewport=$('viewport');
 const localPoint=event=>{const rect=viewport.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};};
@@ -375,7 +423,7 @@ viewport.addEventListener('pointerdown',event=>{
   if(event.button!==0&&event.pointerType==='mouse')return;
   cameraPaint.flush();const point=localPoint(event);pointers.set(event.pointerId,point);viewport.setPointerCapture(event.pointerId);
   if(pointers.size===2){
-    if(drag?.kind==='combat')combatUI.pointerEnd(true);if(drag?.kind==='token')renderTokens();if(drag?.kind==='token'||drag?.kind==='measure')features.clearMeasurement();drag=null;
+    if(drag?.kind==='combat')combatUI.pointerEnd(true);if(drag?.kind==='token'){cancelTokenDrag(false);renderTokens();}if(drag?.kind==='token'||drag?.kind==='measure')features.clearMeasurement();drag=null;
     const [a,b]=[...pointers.values()],cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
     pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),scale:camera.scale,anchor:worldPoint(cx,cy)};return;
   }
@@ -383,11 +431,12 @@ viewport.addEventListener('pointerdown',event=>{
   if(combatUI.pointerDown(worldPoint(point.x,point.y))){drag={kind:'combat',start:point,moved:false};return;}
   if(state.tool==='ruler'){features.beginMeasurement(worldPoint(point.x,point.y));drag={kind:'measure',start:point,moved:false};return;}
   if(state.tool==='ping'){drag={kind:'pan',start:point,x:camera.x,y:camera.y,moved:false,pingOnTap:true};return;}
-  const tokenElement=event.target.closest('.token'),token=tokenElement&&state.scene.tokens.find(t=>t.id===tokenElement.dataset.id);
+  const tokenElement=event.target.closest('.token');
+  const token=event.pointerType==='touch'?touchTokenAt(state.scene.tokens,point,camera,canMove):(tokenElement&&state.scene.tokens.find(t=>t.id===tokenElement.dataset.id));
   if(state.align&&event.target.closest('#grid-origin')){drag={kind:'grid',start:point,x:state.scene.grid.x,y:state.scene.grid.y,moved:false};return;}
   if(token&&state.tool!=='pan'&&!state.align&&canMove(token)){
     if(state.role==='player'&&room.status!=='online'){toast(t('needConnection'));return;}
-    state.selected=token.id;renderTokens();drag={kind:'token',id:token.id,start:point,x:token.x,y:token.y,moved:false};
+    state.selected=token.id;renderTokens();drag={kind:'token',id:token.id,start:point,point,x:token.x,y:token.y,cameraX:camera.x,cameraY:camera.y,moved:false,presenceSent:0};
   }else drag={kind:'pan',start:point,x:camera.x,y:camera.y,moved:false,blank:!token};
 });
 viewport.addEventListener('pointermove',event=>{
@@ -398,15 +447,15 @@ viewport.addEventListener('pointermove',event=>{
   if(drag.kind==='grid'){state.scene.grid.x=Math.round(drag.x+dx/camera.scale);state.scene.grid.y=Math.round(drag.y+dy/camera.scale);renderGrid();}
   if(drag.kind==='combat')combatUI.pointerMove(worldPoint(point.x,point.y));
   if(drag.kind==='measure')features.updateMeasurement(worldPoint(point.x,point.y));
-  if(drag.kind==='token'){const element=[...$('tokens').children].find(t=>t.dataset.id===drag.id),token=state.scene.tokens.find(t=>t.id===drag.id);if(element&&token){const x=drag.x+dx/camera.scale,y=drag.y+dy/camera.scale;element.style.left=x+'px';element.style.top=y+'px';const preview=snapPosition(token,x,y,state.scene);features.movement({...token,x:drag.x,y:drag.y},preview.x,preview.y);}}
+  if(drag.kind==='token'){drag.point=point;if(drag.moved){paintDraggedToken();startEdgeScroll();}}
 });
 function endPointer(event,cancel=false){
   if(!pointers.has(event.pointerId))return;const point=localPoint(event);pointers.delete(event.pointerId);
   if(pinch){
     if(pointers.size<2){pinch=null;if(pointers.size===1){const next=[...pointers.values()][0];drag={kind:'pan',start:next,x:camera.x,y:camera.y,moved:true};}else drag=null;}return;
   }
-  if(!drag)return;const ended=drag;drag=null;
-  if(ended.kind==='token'&&ended.moved&&!cancel){const token=state.scene.tokens.find(t=>t.id===ended.id);if(token){const position=snapPosition(token,ended.x+(point.x-ended.start.x)/camera.scale,ended.y+(point.y-ended.start.y)/camera.scale,state.scene);features.movement({...token,x:ended.x,y:ended.y},position.x,position.y);features.endMovement();const sent=commitCommand({type:'move',id:token.id,...position});if(state.role==='player'&&sent)Object.assign(token,position);if(!sent)features.clearMeasurement();}}
+  if(!drag)return;const ended=drag;drag=null;stopEdgeScroll();if(ended.kind==='token'&&ended.presenceSent)sendMoving(ended.id,false);
+  if(ended.kind==='token'&&ended.moved&&!cancel){const token=state.scene.tokens.find(t=>t.id===ended.id);if(token){const target=dragPosition(ended,point,camera),position=snapPosition(token,target.x,target.y,state.scene);features.movement({...token,x:ended.x,y:ended.y},position.x,position.y);features.endMovement();const sent=commitCommand({type:'move',id:token.id,...position});if(state.role==='player'&&sent)Object.assign(token,position);if(!sent)features.clearMeasurement();}}
   else if(ended.kind==='token'&&cancel)features.endMovement(true);
   if(ended.kind==='combat')combatUI.pointerEnd(cancel);
   if(ended.kind==='measure'){if(!cancel)features.updateMeasurement(worldPoint(point.x,point.y));features.endMeasurement(cancel);}
@@ -415,12 +464,14 @@ function endPointer(event,cancel=false){
   if(ended.kind==='pan'&&!ended.moved&&ended.blank)clearSelection();
   renderTokens();
 }
-viewport.addEventListener('pointerup',event=>endPointer(event));viewport.addEventListener('pointercancel',event=>endPointer(event,true));
+viewport.addEventListener('pointerup',event=>endPointer(event));viewport.addEventListener('pointercancel',event=>endPointer(event,true));viewport.addEventListener('lostpointercapture',event=>endPointer(event,true));
+window.addEventListener('blur',()=>cancelTokenDrag());
 viewport.addEventListener('wheel',event=>{event.preventDefault();const p=localPoint(event);if(Number.isFinite(event.deltaY))zoom(Math.exp(-clamp(event.deltaY,-1000,1000)*.0015),p.x,p.y);},{passive:false});
 document.addEventListener('keydown',event=>{if($('table').hidden||$('modal').open||/INPUT|TEXTAREA|SELECT/.test(event.target.tagName))return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();if(features.undoAvailable())commitCommand({type:'undo'});return;}if(event.key==='Escape'){clearSelection();state.align=false;features.hidePanel();combatUI.hide();combatUI.pointerEnd(true);setTool('select');features.clearMeasurement();renderGrid();updateStatus();}if(event.key==='Delete'&&state.selected)commitCommand({type:'delete',id:state.selected});if(event.key==='+'||event.key==='=')zoom(1.2);if(event.key==='-')zoom(1/1.2);});
+document.addEventListener('fullscreenchange',updateComfortButtons);
 window.addEventListener('resize',()=>{if(!state.scene||$('table').hidden)return;if(isFitted){fit();return;}const view=$('viewport');camera.x+=(view.clientWidth-lastView.width)/2;camera.y+=(view.clientHeight-lastView.height)/2;lastView={width:view.clientWidth,height:view.clientHeight};paintCamera();});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persist();else if(state.role==='dm'&&state.roomActive&&'wakeLock'in navigator)navigator.wakeLock.request('screen').then(lock=>wakeLock=lock).catch(()=>{});});
-window.addEventListener('pagehide',()=>persist());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){cancelTokenDrag();presence.clear();persist();}else if(state.role==='dm'&&state.roomActive&&'wakeLock'in navigator)navigator.wakeLock.request('screen').then(lock=>wakeLock=lock).catch(()=>{});});
+window.addEventListener('pagehide',()=>{cancelTokenDrag();persist();});
 
 async function initialize(){
   translate();$('nickname').value=readPref('nickname');
