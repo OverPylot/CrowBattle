@@ -23,23 +23,37 @@ test('preparation movement does not spend budget and only DM advances combat or 
   assert.equal(applyCombatCommand(s,'p',{type:'encounter',action:'start'}),false);
   assert.equal(applyCombatCommand(s,'dm',{type:'terrain',cells:[[0,0],[0,0],[9999,0]],erase:false}),true);assert.deepEqual(s.terrain,[[0,0]]);
 });
-test('owners set initiative and stack markers, other players cannot alter them',()=>{
+test('any participant sets initiative and stacks markers on another participant’s visible token',()=>{
   const {s,a}=setup();a.owner='alice';
-  assert.equal(applyCombatCommand(s,'bob',{type:'status',id:a.id,status:'poisoned',delta:1}),false);
+  assert.equal(applyCombatCommand(s,'bob',{type:'status',id:a.id,status:'poisoned',delta:1}),true);
+  applyCombatCommand(s,'bob',{type:'status',id:a.id,status:'poisoned',delta:-1});
   for(let i=0;i<2;i++)assert.equal(applyCombatCommand(s,'alice',{type:'status',id:a.id,status:'poisoned',delta:1}),true);
   assert.deepEqual(a.statuses,[{id:'poisoned',count:2}]);applyCombatCommand(s,'alice',{type:'status',id:a.id,status:'poisoned',delta:-1});assert.equal(a.statuses[0].count,1);
-  assert.equal(applyCombatCommand(s,'alice',{type:'combat-stats',id:a.id,initiative:99,limit:30}),true);assert.equal(s.encounter.order[0],a.id);
+  assert.equal(applyCombatCommand(s,'bob',{type:'combat-stats',id:a.id,initiative:99,limit:35}),true);assert.equal(s.encounter.order[0],a.id);
   assert.equal(applyCombatCommand(s,'alice',{type:'combat-stats',id:a.id,initiative:'evil',limit:30}),false);
 });
-test('hidden enemies and private numeric enemy statistics never enter player projections',()=>{
+test('hidden enemies and private movement stay hidden while visible enemy initiative is shared',()=>{
   const {s,a}=setup(),enemy=s.tokens[2];enemy.initiative=999;enemy.movement={limit:987,spent:654};s.encounter.order=[enemy.id,a.id];s.encounter.activeId=enemy.id;enemy.statuses=[{id:'poisoned',count:8}];
   let v=playerView(s);assert.ok(!JSON.stringify(v).includes(enemy.id));assert.equal(v.encounter.activeId,null);
-  enemy.hidden=false;v=playerView(s);const e=v.tokens.find(t=>t.id===enemy.id);assert.equal(e.initiative,null);assert.deepEqual(e.movement,{limit:0,spent:0,private:true});assert.equal(e.statuses[0].count,8);
+  enemy.hidden=false;v=playerView(s);const e=v.tokens.find(t=>t.id===enemy.id);assert.equal(e.initiative,999);assert.deepEqual(e.movement,{limit:0,spent:0,private:true});assert.equal(e.statuses[0].count,8);
 });
-test('spell areas enforce ownership, normalize dimensions and persist through backup normalization',()=>{
+test('any participant edits and relocates spell areas while ownership and deletion stay protected',()=>{
   const {s}=setup();assert.equal(applyCombatCommand(s,'alice',{type:'area-add',area:{shape:'cone',feet:30,rotation:90,x:128,y:128,owner:'dm'}}),true);
   const a=s.areas[0];assert.equal(a.owner,'alice');assert.equal(applyCombatCommand(s,'bob',{type:'area-delete',id:a.id}),false);
-  assert.equal(applyCombatCommand(s,'alice',{type:'area-edit',id:a.id,area:{feet:1e9,owner:'bob'}}),true);assert.equal(s.areas[0].owner,'alice');assert.equal(s.areas[0].feet,500);
+  assert.equal(applyCombatCommand(s,'bob',{type:'area-edit',id:a.id,area:{feet:1e9,owner:'bob',x:320,y:384,rotation:180,color:'#123456'}}),true);assert.equal(s.areas[0].owner,'alice');assert.equal(s.areas[0].feet,500);assert.equal(s.areas[0].x,320);assert.equal(s.areas[0].y,384);assert.equal(s.areas[0].rotation,180);assert.equal(s.areas[0].color,'#123456');
   s.tokens[0].statuses=[{id:'burning',count:2}];const reloaded=normalizeScene(JSON.parse(JSON.stringify(s)));assert.equal(reloaded.areas.length,1);assert.equal(reloaded.encounter.running,true);assert.equal(reloaded.tokens[0].statuses[0].count,2);
   assert.deepEqual(normalizeStatuses([{id:'evil',count:1},{id:'burning',count:90},{id:'burning',count:90}]),[{id:'burning',count:99}]);
+});
+
+test('visible DM enemy initiative is editable without overwriting or exposing its private movement',()=>{
+  const {s}=setup(),enemy=s.tokens[2];enemy.hidden=false;enemy.initiative=9;enemy.movement={limit:60,spent:25,private:false};
+  assert.equal(applyCombatCommand(s,'bob',{type:'combat-stats',id:enemy.id,initiative:42}),true);
+  assert.equal(enemy.initiative,42);assert.deepEqual(enemy.movement,{limit:60,spent:25,private:false});
+  assert.equal(playerView(s).tokens.find(t=>t.id===enemy.id).initiative,42);
+  for(const extra of [{limit:0},{reset:true}])assert.equal(applyCombatCommand(s,'bob',{type:'combat-stats',id:enemy.id,initiative:0,...extra}),false);
+  assert.equal(enemy.initiative,42);
+  enemy.hidden=true;
+  assert.equal(applyCombatCommand(s,'bob',{type:'combat-stats',id:enemy.id,initiative:99}),false);
+  assert.equal(applyCombatCommand(s,'bob',{type:'status',id:enemy.id,status:'poisoned',delta:1}),false);
+  assert.equal(applyCombatCommand(s,'dm',{type:'combat-stats',id:enemy.id,initiative:99,limit:90}),true);
 });

@@ -10,7 +10,9 @@ test('any player may move a visible enemy but hidden enemies remain inaccessible
   const hidden=scene.tokens.find(t=>t.hidden),before=JSON.stringify(hidden);
   assert.equal(applyPlayerCommand(scene,'new-player',{type:'move',id:hidden.id,x:0,y:0}),false);
   assert.equal(JSON.stringify(hidden),before);
-  assert.equal(applyPlayerCommand(scene,'new-player',{type:'edit',id:scene.tokens[0].id,token:{name:'Hacked'}}),false);
+  assert.equal(applyPlayerCommand(scene,'new-player',{type:'edit',id:scene.tokens[0].id,token:{name:'Shared enemy',party:true}}),true);
+  assert.equal(scene.tokens[0].name,'Shared enemy');assert.equal(scene.tokens[0].party,false);
+  assert.deepEqual(playerView(scene).tokens[0].movement,{limit:0,spent:0,private:true});
 });
 test('successive undo restores moves without leaking or undoing hidden moves for players',()=>{
   const scene=makeDemo(),token=scene.tokens[0],hidden=scene.tokens.find(t=>t.hidden),original={x:token.x,y:token.y};

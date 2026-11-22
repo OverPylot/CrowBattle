@@ -1,6 +1,6 @@
-import {normalizeCombatToken,normalizeTerrain,normalizeEncounter,normalizeArea,movementCost,syncEncounter} from './combat.js?v=0.5.0';
+import {normalizeCombatToken,normalizeTerrain,normalizeEncounter,normalizeArea,movementCost,syncEncounter} from './combat.js?v=0.5.1';
 // Shared data rules. Only the DM browser accepts commands and constructs player views.
-import {TOKEN_ASSETS} from './tokens.js?v=0.5.0';
+import {TOKEN_ASSETS} from './tokens.js?v=0.5.1';
 export const VERSION=3;
 export const PALETTE=['#456d5d','#b66c47','#536d91','#896285','#b69b4e','#6c7970','#954e4a'];
 export const DICE=[4,6,8,10,12,20,100];
@@ -51,7 +51,7 @@ export function undoMove(scene,allowHidden=false){
 }
 export function playerView(scene,participants=[],rolls=[]){
   return {version:VERSION,id:scene.id,name:scene.name,map:{...scene.map},grid:{...scene.grid},
-    tokens:scene.tokens.filter(t=>!t.hidden).map(t=>({id:t.id,name:t.name,owner:t.owner,x:t.x,y:t.y,w:t.w,h:t.h,color:t.color,image:t.image,hidden:false,party:!!t.party,statuses:structuredClone(t.statuses),initiative:t.party||t.owner!=='dm'?t.initiative:null,movement:t.party||t.owner!=='dm'?{...t.movement}:{limit:0,spent:0,private:true}})),
+    tokens:scene.tokens.filter(t=>!t.hidden).map(t=>({id:t.id,name:t.name,owner:t.owner,x:t.x,y:t.y,w:t.w,h:t.h,color:t.color,image:t.image,hidden:false,party:!!t.party,statuses:structuredClone(t.statuses),initiative:t.initiative,movement:t.party||t.owner!=='dm'?{...t.movement}:{limit:0,spent:0,private:true}})),
     terrain:structuredClone(scene.terrain),areas:structuredClone(scene.areas),encounter:{...scene.encounter,activeId:scene.tokens.some(t=>t.id===scene.encounter.activeId&&!t.hidden)?scene.encounter.activeId:null,order:scene.encounter.order.filter(id=>scene.tokens.some(t=>t.id===id&&!t.hidden))},
     loot:scene.loot?.visible?structuredClone(scene.loot):null,canUndo:canUndoMove(scene),
     rolls:rolls.filter(r=>r&&!r.secret).slice(-30).map(r=>structuredClone(r)),revision:scene.revision,
@@ -71,13 +71,14 @@ export function applyPlayerCommand(scene,actor,command){
     const t=normalizeToken({...command.token,id:uid(),owner:actor,hidden:false,name:uniqueTokenName(scene,command.token.name)},scene.map,scene.grid);Object.assign(t,snapPosition(t,t.x,t.y,scene));scene.tokens.push(t);return true;
   }
   const token=scene.tokens.find(t=>t.id===command.id&&!t.hidden);if(!token)return false;
-  // All visible tokens can move, regardless of owner. Editing stays owner-only.
+  // Public token fields are shared; visibility, ownership and DM party flags stay protected.
   if(command.type==='move')return moveToken(scene,token,command.x,command.y);
-  if(token.owner!==actor)return false;
   if(command.type==='edit'){
     const f=command.token;if(!f||typeof f!=='object')return false;
-    Object.assign(token,normalizeToken({...token,name:f.name,color:f.color,image:f.image,w:f.w,h:f.h,party:f.party},scene.map,scene.grid));return true;
+    const fields=Object.fromEntries(['name','color','image','w','h',...(token.owner===actor?['party']:[])].filter(key=>Object.hasOwn(f,key)).map(key=>[key,f[key]]));
+    Object.assign(token,normalizeToken({...token,...fields},scene.map,scene.grid));return true;
   }
+  if(token.owner!==actor)return false;
   if(command.type==='delete'){scene.tokens=scene.tokens.filter(t=>t.id!==token.id);syncEncounter(scene);return true;}
   return false;
 }

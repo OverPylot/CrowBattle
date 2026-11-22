@@ -10,10 +10,16 @@ test('the player view omits hidden tokens and all DM credentials',()=>{
   assert.equal(view.tokens.length,2);assert.ok(!view.tokens.some(t=>t.id===hidden.id));
   const serialized=JSON.stringify(view);assert.ok(!serialized.includes('SECRET'));assert.ok(!serialized.includes(hidden.name));assert.ok(!('room' in view));assert.ok(!('dmKey' in view));
 });
-test('players can move visible tokens but cannot edit/delete someone else’s token or mutate the grid',()=>{
+test('players can move and edit visible tokens while deletion, ownership and DM secrets stay protected',()=>{
   const scene=makeDemo(),token=scene.tokens[0],before=JSON.stringify(scene);
   assert.equal(applyPlayerCommand(scene,'intruder',{type:'move',id:token.id,x:200,y:300}),true);
   assert.equal(token.x,192);assert.equal(token.y,320);
+  const movement={...token.movement};const initiative=token.initiative;
+  assert.equal(applyPlayerCommand(scene,'intruder',{type:'edit',id:token.id,token:{name:'Shared hero',w:128,h:128,color:'#123456',owner:'intruder',hidden:true,party:false,initiative:999,movement:{limit:999}}}),true);
+  assert.equal(token.name,'Shared hero');assert.equal(token.w,128);assert.equal(token.color,'#123456');assert.equal(token.owner,'dm');assert.equal(token.hidden,false);assert.equal(token.party,true);assert.equal(token.initiative,initiative);assert.deepEqual(token.movement,movement);
+  const enemy=scene.tokens.find(t=>t.hidden);const enemyBefore=JSON.stringify(enemy);
+  for(const command of [{type:'edit',token:{name:'Revealed',hidden:false}},{type:'move',x:0,y:0},{type:'delete'}])assert.equal(applyPlayerCommand(scene,'intruder',{...command,id:enemy.id}),false);
+  assert.equal(JSON.stringify(enemy),enemyBefore);
   const afterMove=JSON.stringify(scene);
   assert.equal(applyPlayerCommand(scene,'intruder',{type:'delete',id:token.id}),false);
   assert.equal(applyPlayerCommand(scene,'intruder',{type:'grid',grid:{size:999}}),false);

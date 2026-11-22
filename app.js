@@ -1,13 +1,13 @@
-import {safeZoom,viewportBox,createFrameScheduler} from './view.js?v=0.5.0';
-import {applyCombatCommand,syncEncounter} from './combat.js?v=0.5.0';
-import {createCombatUI} from './combat-ui.js?v=0.5.0';
-import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.5.0';
-import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.5.0';
-import {messages} from './i18n.js?v=0.5.0';
-import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.5.0';
-import {createFeatures} from './features.js?v=0.5.0';
+import {safeZoom,viewportBox,createFrameScheduler} from './view.js?v=0.5.1';
+import {applyCombatCommand,syncEncounter} from './combat.js?v=0.5.1';
+import {createCombatUI} from './combat-ui.js?v=0.5.1';
+import {normalizeScene,normalizeToken,normalizeRoll,makeDemo,playerView,applyPlayerCommand,snapPosition,moveToken,undoMove,uniqueTokenName,carryParty,clamp,uid,PALETTE,validImage} from './model.js?v=0.5.1';
+import {listScenes,saveScene,deleteScene,readPref,writePref} from './storage.js?v=0.5.1';
+import {messages} from './i18n.js?v=0.5.1';
+import {Room,generateCode,cleanCode,displayCode} from './room.js?v=0.5.1';
+import {createFeatures} from './features.js?v=0.5.1';
 
-import {touchTokenAt,edgeVelocity,dragPosition,playerLink,qrMarkup,MovePresence} from './comfort.js?v=0.5.0';
+import {touchTokenAt,edgeVelocity,dragPosition,playerLink,qrMarkup,MovePresence} from './comfort.js?v=0.5.1';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -81,7 +81,7 @@ function renderScene(){
   $('scene-title').textContent=sceneName(scene);
   for(const id of ['world','token-world']){$(id).style.width=scene.map.width+'px';$(id).style.height=scene.map.height+'px';}
   $('grid-fill').setAttribute('width',scene.map.width);$('grid-fill').setAttribute('height',scene.map.height);
-  const displaySource=scene.map.src.startsWith('./assets/')?scene.map.src+'?v=0.5.0':scene.map.src;
+  const displaySource=scene.map.src.startsWith('./assets/')?scene.map.src+'?v=0.5.1':scene.map.src;
   if($('map-image').getAttribute('src')!==displaySource)$('map-image').src=displaySource;
   $('map-image').alt=sceneName(scene);renderGrid();renderTokens();updateStatus();
 }
@@ -114,6 +114,7 @@ function renderGrid(){
   $('grid-origin').hidden=!state.align;$('grid-origin').style.left=g.x+'px';$('grid-origin').style.top=g.y+'px';features.paintCamera();combatUI.render();
 }
 function owns(token){return state.role==='dm'||(token.owner===state.myId&&!token.hidden);}
+function canEdit(token){return state.role==='dm'||!token.hidden;}
 function canMove(token){return state.role==='dm'||!token.hidden;}
 function renderTokens(){
   if(!state.scene)return;
@@ -122,7 +123,7 @@ function renderTokens(){
     if(token.hidden&&state.role!=='dm')continue;present.add(token.id);
     let el=[...layer.children].find(el=>el.dataset.id===token.id);
     if(!el){el=document.createElement('div');el.className='token';el.dataset.id=token.id;el.setAttribute('role','button');el.tabIndex=0;layer.append(el);}
-    el.className='token'+(token.hidden?' is-hidden':'')+(token.id===state.selected?' is-selected':'')+(!owns(token)?' not-owned':'');
+    el.className='token'+(token.hidden?' is-hidden':'')+(token.id===state.selected?' is-selected':'')+(!canEdit(token)?' not-owned':'');
     el.style.left=token.x+'px';el.style.top=token.y+'px';el.style.width=token.w+'px';el.style.height=token.h+'px';el.style.setProperty('--token-color',token.color);
     el.setAttribute('aria-label',token.name+(token.hidden?' · '+t('hidden'):''));
     el.replaceChildren();if(token.image){const image=document.createElement('img');image.src=token.image;image.alt='';image.draggable=false;el.append(image);}else{const initials=document.createElement('span');initials.className='token-initials';initials.textContent=token.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2);el.append(initials);}
@@ -133,7 +134,8 @@ function renderTokens(){
   for(const el of [...layer.children])if(!present.has(el.dataset.id))el.remove();
   const selected=state.scene.tokens.find(t=>t.id===state.selected&&canMove(t));
   $('token-context').hidden=!selected;if(selected)$('selected-name').textContent=selected.name;else state.selected=null;
-  for(const action of ['edit-token','delete-token'])document.querySelector(`#token-context [data-action="${action}"]`).hidden=!selected||!owns(selected);
+  document.querySelector('#token-context [data-action="edit-token"]').hidden=!selected||!canEdit(selected);
+  document.querySelector('#token-context [data-action="delete-token"]').hidden=!selected||!owns(selected);
 }
 function paintCamera(){cameraPaint.schedule();}
 function drawCamera(){
@@ -219,11 +221,11 @@ async function importBackup(file){
 }
 function tokenModal(edit=false){
   if(!state.scene)return;if(state.role==='player'&&room.status!=='online'){toast(t('needConnection'));return;}
-  const current=edit?state.scene.tokens.find(t=>t.id===state.selected):null;if(edit&&(!current||!owns(current)))return;
+  const current=edit?state.scene.tokens.find(t=>t.id===state.selected):null;if(edit&&(!current||!canEdit(current)))return;
   const grid=state.scene.grid;const ratio=current?current.w/grid.size:1;const preset=current&&Math.abs(current.w-current.h)<.01&&Number.isInteger(ratio)&&ratio>=1&&ratio<=5?String(ratio):current?'custom':'1';
   uploadedToken=current?.image||'';tokenColor=current?.color||PALETTE[0];
   const ownerOptions=`<option value="dm">${t('dmOwner')}</option>`+state.participants.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} ${p.online?'':t('ownerOffline')}</option>`).join('');
-  modal(t(edit?'editTokenTitle':'addToken'),`<div class="token-preview"><div id="token-preview" class="preview-circle"></div><span class="preview-copy">${t('tokenCopy')}</span></div>${field(t('tokenName'),'token-name',current?.name||'','text',`required maxlength="40" placeholder="${t('tokenNamePlaceholder')}"`)}<label><span>${t('size')}</span><select id="token-size">${[1,2,3,4,5].map(n=>`<option value="${n}" ${preset===String(n)?'selected':''}>${n} × ${n} · ${n*5} ft</option>`).join('')}<option value="custom" ${preset==='custom'?'selected':''}>${t('custom')}</option></select></label><div id="custom-size" class="field-row" ${preset==='custom'?'':'hidden'}>${field(t('width'),'token-width',current?(current.w/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}${field(t('height'),'token-height',current?(current.h/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}</div><label><span>${t('color')}</span><span class="swatches">${PALETTE.map(color=>`<button type="button" class="swatch${color===tokenColor?' active':''}" style="background:${color}" data-action="token-color" data-color="${color}" aria-label="${color}"></button>`).join('')}</span></label><label><span>${t('tokenImage')}</span><input id="token-image" type="file" accept="image/png,image/jpeg,image/webp"></label><button type="button" id="remove-token-image" class="text-button" data-action="remove-token-image" ${uploadedToken?'':'hidden'}>${t('removeImage')}</button><label class="check-field token-party"><input id="token-party" type="checkbox" ${(current?.party??state.role==='player')?'checked':''}><span>${t('partyToken')}</span></label>${!edit?`<label class="check-field"><input id="token-save-library" type="checkbox"><span>${t('saveTemplate')}</span></label>`:''}${state.role==='dm'?`<label><span>${t('owner')}</span><select id="token-owner">${ownerOptions}</select></label><label class="check-field"><input id="token-hidden" type="checkbox" ${current?.hidden?'checked':''}><span>${t('hidden')}</span></label>`:''}`,cancelButton()+submitButton(t(edit?'save':'placeToken')),()=>{
+  modal(t(edit?'editTokenTitle':'addToken'),`<div class="token-preview"><div id="token-preview" class="preview-circle"></div><span class="preview-copy">${t('tokenCopy')}</span></div>${field(t('tokenName'),'token-name',current?.name||'','text',`required maxlength="40" placeholder="${t('tokenNamePlaceholder')}"`)}<label><span>${t('size')}</span><select id="token-size">${[1,2,3,4,5].map(n=>`<option value="${n}" ${preset===String(n)?'selected':''}>${n} × ${n} · ${n*5} ft</option>`).join('')}<option value="custom" ${preset==='custom'?'selected':''}>${t('custom')}</option></select></label><div id="custom-size" class="field-row" ${preset==='custom'?'':'hidden'}>${field(t('width'),'token-width',current?(current.w/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}${field(t('height'),'token-height',current?(current.h/grid.size).toFixed(2):1,'number','min="0.1" max="512" step="0.01" required')}</div><label><span>${t('color')}</span><span class="swatches">${PALETTE.map(color=>`<button type="button" class="swatch${color===tokenColor?' active':''}" style="background:${color}" data-action="token-color" data-color="${color}" aria-label="${color}"></button>`).join('')}</span></label><label><span>${t('tokenImage')}</span><input id="token-image" type="file" accept="image/png,image/jpeg,image/webp"></label><button type="button" id="remove-token-image" class="text-button" data-action="remove-token-image" ${uploadedToken?'':'hidden'}>${t('removeImage')}</button><label class="check-field token-party"><input id="token-party" type="checkbox" ${edit&&state.role!=='dm'&&current.owner!==state.myId?'disabled':''} ${(current?.party??state.role==='player')?'checked':''}><span>${t('partyToken')}</span></label>${!edit?`<label class="check-field"><input id="token-save-library" type="checkbox"><span>${t('saveTemplate')}</span></label>`:''}${state.role==='dm'?`<label><span>${t('owner')}</span><select id="token-owner">${ownerOptions}</select></label><label class="check-field"><input id="token-hidden" type="checkbox" ${current?.hidden?'checked':''}><span>${t('hidden')}</span></label>`:''}`,cancelButton()+submitButton(t(edit?'save':'placeToken')),()=>{
     const size=$('token-size').value;
     const w=(size==='custom'?Number($('token-width').value):Number(size))*grid.size,h=(size==='custom'?Number($('token-height').value):Number(size))*grid.size;
     const center=centerPoint();

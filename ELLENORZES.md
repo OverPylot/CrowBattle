@@ -1,3 +1,18 @@
+# CrowBattle 0.5.1 ellenőrzése
+
+2026. november 22. **41 automatizált teszt sikeres.** Az összes alkalmazásmodul szintaktikai ellenőrzése sikeres.
+
+A jogosultsági tesztek most közös tokennév-, méret-, szín-, állapot- és kezdeményezés-szerkesztést várnak el. Ellenőrzik a más által készített varázsterület áthelyezését, forgatását és méretezését, valamint a rejtett tokenek, a DM privát mozgáskerete és a tulajdonjog védelmét. A látható ellenfél kezdeményezése immár közös adat; a korábbi tesztelési feljegyzések ennek rejtettségéről a régi kiadásokra vonatkoznak.
+
+Valódi PeerJS/WebRTC-kapcsolatban két tesztlapon:
+
+- A játékos a DM Liora tokenjét átnevezte, 18-as kezdeményezést adott neki, és elmozgatta. A DM nézetében is megjelent az új név és a 640/576-os térképi végpozíció.
+- A játékos a DM körsablonjának sugarát 20-ról 30 lábra állította, és az Áthelyezés gombbal új helyre tette. A DM rajzrétegében a középpont 288/288 lett, a sugár 384 térképpixel.
+- A rejtett Őrző eredetileg hiányzott a játékos nézetéből. A DM felfedése után a játékos 22-es kezdeményezést mentett, és Mérgezett jelölőt adott neki. Újranyitva megmaradt a 22 és az egy jelölő. A privát mozgáskeret mezője nem jelent meg a játékosnál; az automatizált próba ellenőrzi, hogy a kezdeményezés mentése megőrzi ezt a keretet.
+- A DM és a játékos konzoljában nem volt alkalmazáshiba.
+
+Külön fizikai Android- és Firefox-próba ebben a kiadásban nem történt. A GitHubon futó oldal nem lett automatikusan frissítve; a kézi feltöltéshez a FRISSITES-v0.5.1.md használható.
+
 # CrowBattle 0.5.0 ellenőrzése
 
 2026. október 26. **40 automatizált teszt sikeres.** Minden alkalmazásmodul szintaktikai ellenőrzése sikeres.

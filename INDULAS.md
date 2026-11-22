@@ -1,12 +1,12 @@
-# Így indítsd el ingyen a CrowBattle-t 0.5.0
+# Így indítsd el ingyen a CrowBattle-t 0.5.1
 
-Ha a korábbi változatot már használod, a [FRISSITES-v0.5.0.md](FRISSITES-v0.3.md) útmutatót kövesd.
+Ha a korábbi változatot már használod, a [FRISSITES-v0.5.1.md](FRISSITES-v0.5.1.md) útmutatót kövesd.
 
 A weboldalt a GitHub Pages szolgálja ki. A játékosok és a mesélő összekapcsolását a PeerJS ingyenes szolgáltatása segíti. Nem kell bankkártya, PeerJS-fiók, API-kulcs, domainvásárlás, saját szerver vagy fizetős tárhely.
 
 ## 1. Csomagold ki a letöltött fájlt
 
-Csomagold ki a `crowbattle-v0.5.0.zip` fájlt. Az alkalmazás fájljait fogod látni: `index.html`, `style.css`, `app.js`, további JavaScript-fájlok, `assets` és `vendor` mappák, illetve útmutatók.
+Csomagold ki a `crowbattle-v0.5.1.zip` fájlt. Az alkalmazás fájljait fogod látni: `index.html`, `style.css`, `app.js`, további JavaScript-fájlok, `assets` és `vendor` mappák, illetve útmutatók.
 
 ## 2. Hozz létre egy GitHub-kódtárat
 
@@ -58,7 +58,7 @@ Hivatalos segítség: [GitHub Pages beállítása](https://docs.github.com/en/pa
 1. DM-ként kattints a **Szoba indítása** gombra.
 2. A létrejövő szobakódot másold ki, vagy válaszd a **Játékoslink** gombot.
 3. A játékosok a szobaablak QR-kódját is beolvashatják, vagy megnyitják az oldaladat vagy a játékoslinket, megadják a becenevüket és a kódot, majd a **Csatlakozás** gombra kattintanak.
-4. A játékos feltölthet saját tokent. Ha te készítetted elő a figuráját, a token szerkesztésénél a **Ki kezelheti?** mezőben rendeld a már csatlakozott játékoshoz.
+4. A játékos feltölthet saját tokent. Ha te készítetted elő a figuráját, a token szerkesztésénél a **Token gazdája (törölheti)** mezőben rendeld a már csatlakozott játékoshoz. A szerkesztés és mozgatás minden látható tokennél mindenki számára elérhető.
 5. Tartsd nyitva és aktívan a DM-oldalt a játék végéig. A telefon lezárása vagy az oldal háttérbe helyezése megszakíthatja a kapcsolatot.
 
 A szoba tartalmát a kóddal rendelkezők érhetik el. A DM-kezdőképernyőre kattintó másik látogató a saját helyi térképtárát látja, és nem kap hozzáférést a te mesélői eszközeidhez.

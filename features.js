@@ -1,9 +1,9 @@
-import {safeZoom,measurementLabelMetrics} from './view.js?v=0.5.0';
-import {diceIcon} from './dice-icons.js?v=0.5.0';
-import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.5.0';
-import {BUILTIN_TOKENS} from './tokens.js?v=0.5.0';
-import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.5.0';
-import {listTemplates,saveTemplate} from './storage.js?v=0.5.0';
+import {safeZoom,measurementLabelMetrics} from './view.js?v=0.5.1';
+import {diceIcon} from './dice-icons.js?v=0.5.1';
+import {cellCenter,normalizeMeasurement,committedMovement,MEASURE_FADE_MS,MEASURE_IDLE_MS,MEASURE_SEND_MS} from './measurement.js?v=0.5.1';
+import {BUILTIN_TOKENS} from './tokens.js?v=0.5.1';
+import {DICE,PALETTE,normalizeTemplate,normalizeLoot,normalizeRoll,createRoll,measureDistance,canUndoMove,uid,clamp} from './model.js?v=0.5.1';
+import {listTemplates,saveTemplate} from './storage.js?v=0.5.1';
 
 export function createFeatures(ctx){
   const {$,t,esc,icon,toast,modal,closeModal,field,submitButton,cancelButton}=ctx;

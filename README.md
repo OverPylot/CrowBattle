@@ -1,9 +1,9 @@
-# CrowBattle 0.5.0
+# CrowBattle 0.5.1
 
 Magyar–angol, mobilbarát virtuális játékasztal D&D-hez. Saját szerver, buildelés és csomagtelepítés nélkül feltölthető GitHub Pages-re. A DM böngészője tartja össze a játékot, az egymásra találást az ingyenes PeerJS Cloud segíti.
 
 - Első indítás: [INDULAS.md](INDULAS.md).
-- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.5.0.md](FRISSITES-v0.5.0.md).
+- Meglévő oldal frissítése és az új funkciók: [FRISSITES-v0.5.1.md](FRISSITES-v0.5.1.md).
 - Ellenőrzés és annak határai: [ELLENORZES.md](ELLENORZES.md).
 
 ## Ingyenes közzététel
@@ -31,7 +31,7 @@ A GitHubra csak az alkalmazás kódját és a mellékelt grafikákat töltöd fe
 - PNG, JPG és WebP térképfeltöltés. Legfeljebb 20 MB bemeneti kép; a hosszabb oldal legfeljebb 4096 pixelre lesz kicsinyítve.
 - Négyzetrács: mezőméret, eltolás, szín, átlátszóság, vonalvastagság, rácshoz igazítás. 1 mező = 5 láb.
 - Tokenfeltöltés, név, szín, 1×1–5×5 mezős és szabad szélességű/magasságú méretezés.
-- Minden látható tokent bárki mozgathat; szerkeszteni és törölni a tulajdonosa vagy a DM tudja. A DM elrejtheti és visszahozhatja a figurákat. A rejtett token nem szerepel a játékosoknak küldött állapotban.
+- Minden látható tokent bárki mozgathat és szerkeszthet, a kezdeményezését és jelölőit is. Törölni a tulajdonosa vagy a DM tudja. A DM elrejtheti és visszahozhatja a figurákat. A rejtett token nem szerepel a játékosoknak küldött állapotban.
 - Mozgatás visszavonása, térképenként legfeljebb 50 bejegyzéssel; Ctrl/Cmd+Z.
 - Közös, mezőközéptől induló távolságmérés és mozgásjelzés. A vonalon név, láb és mezőszám jelenik meg; a jelzés felengedés után 3 másodperccel eltűnik. Átlósan is 5 láb egy mező. Rejtett token mozgása csak a DM-nél látszik.
 - Névvel jelzett, minden résztvevőnél megjelenő térképi ping.
@@ -46,7 +46,7 @@ A GitHubra csak az alkalmazás kódját és a mellékelt grafikákat töltöd fe
 
 - Képernyőpixelben korlátozott, halmozható állapotjelölők és rövid `elköltött/keret ft` mozgásfelirat; tokenenkénti kezdeményezés és közös harckövető.
 - Körönként visszatöltődő mozgáskeret, összegzett költség, piros túllépés és visszavonáskor költség-visszatérítés.
-- Festhető/radírozható nehéz terep, kétszeres mezőköltséggel; közös kör-, kúp- és vonalsablonok.
+- Festhető/radírozható nehéz terep, kétszeres mezőköltséggel; bárki által szerkeszthető és áthelyezhető kör-, kúp- és vonalsablonok. A látható ellenfél kezdeményezése közös, mozgáskerete privát marad.
 
 Karakterlap, chat, köd, automatikus lootfelvétel és képes/leveles megosztás nincs ebben a változatban.
 

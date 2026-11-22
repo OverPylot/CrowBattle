@@ -1,4 +1,4 @@
-import {STATUS_CATALOG} from './conditions.js?v=0.5.0';
+import {STATUS_CATALOG} from './conditions.js?v=0.5.1';
 const ids=new Set(STATUS_CATALOG.map(s=>s.id));
 const n=(v,d,min,max)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):d;
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
@@ -44,15 +44,17 @@ export function movementCost(scene,token,to){
 export function applyCombatCommand(scene,actor,cmd){
   if(!cmd||typeof cmd!=='object')return null;const dm=actor==='dm';
   if(cmd.type==='combat-stats'||cmd.type==='status'){
-    const token=scene.tokens.find(t=>t.id===cmd.id&&(dm||!t.hidden));if(!token||(!dm&&token.owner!==actor))return false;
+    const token=scene.tokens.find(t=>t.id===cmd.id&&(dm||!t.hidden));if(!token)return false;
     if(cmd.type==='status'){
       if(!ids.has(cmd.status)||![-1,1].includes(cmd.delta))return false;
       const old=token.statuses.find(s=>s.id===cmd.status),count=(old?.count||0)+cmd.delta;
       token.statuses=token.statuses.filter(s=>s.id!==cmd.status);if(count>0)token.statuses.push({id:cmd.status,count:Math.min(99,count)});return true;
     }
     if(cmd.initiative!==null&&(!Number.isInteger(cmd.initiative)||Math.abs(cmd.initiative)>999))return false;
-    if(!finite(cmd.limit)||cmd.limit<0||cmd.limit>9999)return false;
-    token.initiative=cmd.initiative;token.movement.limit=cmd.limit;
+    const hasLimit=Object.hasOwn(cmd,'limit'),privateMovement=!dm&&token.owner==='dm'&&!token.party;
+    if(privateMovement&&(hasLimit||cmd.reset===true))return false;
+    if(hasLimit&&(!finite(cmd.limit)||cmd.limit<0||cmd.limit>9999))return false;
+    token.initiative=cmd.initiative;if(hasLimit)token.movement.limit=cmd.limit;
     if(cmd.reset===true)resetMovement(scene,token.id);syncEncounter(scene);return true;
   }
   if(cmd.type==='encounter'){
@@ -76,7 +78,7 @@ export function applyCombatCommand(scene,actor,cmd){
     if((scene.areas?.length||0)>=100)return false;const a=normalizeArea({...cmd.area,id:crypto.randomUUID(),owner:actor},scene.map);if(!a)return false;scene.areas.push(a);return true;
   }
   if(cmd.type==='area-edit'||cmd.type==='area-delete'){
-    const i=scene.areas.findIndex(a=>a.id===cmd.id);if(i<0||(!dm&&scene.areas[i].owner!==actor))return false;
+    const i=scene.areas.findIndex(a=>a.id===cmd.id);if(i<0||(cmd.type==='area-delete'&&!dm&&scene.areas[i].owner!==actor))return false;
     if(cmd.type==='area-delete')scene.areas.splice(i,1);else{const a=normalizeArea({...scene.areas[i],...cmd.area,id:cmd.id,owner:scene.areas[i].owner},scene.map);if(!a)return false;scene.areas[i]=a;}return true;
   }
   return null;
